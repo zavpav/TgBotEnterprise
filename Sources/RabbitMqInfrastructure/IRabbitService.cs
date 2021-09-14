@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
 using InfrastructureServices;
 
@@ -8,6 +7,7 @@ namespace RabbitMqInfrastructure
 {
     public interface IRabbitService
     {
+        /// <summary> Initialize </summary>
         void Initialize();
 
         /// <summary> Direct request for another service </summary>

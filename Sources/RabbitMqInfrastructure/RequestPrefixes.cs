@@ -1,6 +1,4 @@
-﻿using System.Collections.Specialized;
-
-namespace RabbitMqInfrastructure
+﻿namespace RabbitMqInfrastructure
 {
     /// <summary> Prefixes of queue for rabbit communication </summary>
     public static class RequestPrefixes
