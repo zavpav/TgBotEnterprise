@@ -1,0 +1,14 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/Sources/InfrastructureServices/bin
+/Sources/InfrastructureServices/obj
+/Sources/RabbitMqInfrastructure/bin
+/Sources/RabbitMqInfrastructure/obj
+/Sources/TgBotEnterpriseRabbitTest1/bin
+/Sources/TgBotEnterpriseRabbitTest1/obj
+/Sources/TgBotEnterpriseRabbitTest2/bin
+/Sources/TgBotEnterpriseRabbitTest2/obj
+/Sources/.vs
