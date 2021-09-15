@@ -15,13 +15,14 @@ namespace MainBotService.RabbitCommunication
             this._nodeInfo = nodeInfo;
         }
 
-        public Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit, 
+        public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit, 
             string actionName, 
             IDictionary<string, string> messageHeaders,
             string directMessage)
         {
+            await Task.Delay(9000);
             Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
-            return Task.FromResult(directMessage);
+            return directMessage;
         }
     }
 }

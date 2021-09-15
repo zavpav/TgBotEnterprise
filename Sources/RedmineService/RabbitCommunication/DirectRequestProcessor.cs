@@ -20,7 +20,7 @@ namespace RedmineService.RabbitCommunication
             IDictionary<string, string> messageHeaders,
             string directMessage)
         {
-            await Task.Delay(2000);
+            await Task.Delay(5000);
             Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
             return directMessage;
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using CommonInfrastructure;
 using RabbitMQ.Client;
@@ -141,11 +142,60 @@ namespace RabbitMqInfrastructure
                 { "ResponseQueue",  responseQueueName }
             };
 
-            var tcsResponse = this.ResponseTaskSource(responseQueueName);
+            var responseTask = this.ResponseTaskSource(responseQueueName);
 
             this.DirectRequest(message, responseQueueName, headers);
 
-            return tcsResponse.Task;
+            return responseTask;
+        }
+
+        /// <summary> Generate "Task" for waiting response </summary>
+        private Task<string> ResponseTaskSource(string responseQueueName)
+        {
+            var channel = this.Channel();
+
+            var tcsResponse = new TaskCompletionSource<string>();
+            var responseQueue = channel.QueueDeclare(responseQueueName,
+                durable: false,
+                exclusive: true,
+                autoDelete: true,
+                arguments: null);
+
+            var responseConsumer = new AsyncEventingBasicConsumer(channel);
+            responseConsumer.Received += (s, e) =>
+            {
+                var responseMessage = Encoding.UTF8.GetString(e.Body.ToArray());
+                channel.QueueDelete(responseQueueName);
+                tcsResponse.SetResult(responseMessage);
+                return Task.CompletedTask;
+            };
+
+            channel.BasicConsume(queue: responseQueue.QueueName,
+                autoAck: true,
+                consumer: responseConsumer);
+
+
+            return ResponseTaskSourceWait(tcsResponse, channel, responseQueue.QueueName);
+        }
+
+        private async Task<string> ResponseTaskSourceWait(TaskCompletionSource<string> tcsResponse,
+            IModel channel, string responseQueueName)
+        {
+            using (var timeoutCancellationTokenSource = new CancellationTokenSource())
+            {
+
+                var completedTask = await Task.WhenAny(tcsResponse.Task, Task.Delay(10000, timeoutCancellationTokenSource.Token));
+                if (completedTask == tcsResponse.Task)
+                {
+                    timeoutCancellationTokenSource.Cancel();
+                    return await tcsResponse.Task;  
+                }
+                else
+                {
+                    channel.QueueDelete(responseQueueName);
+                    throw new TimeoutException("The operation has timed out.");
+                }
+            }
         }
 
         /// <summary> Publish information from node to CentralHub </summary>
@@ -235,34 +285,6 @@ namespace RabbitMqInfrastructure
                 routingKey: string.Empty,
                 body: requestBody,
                 basicProperties: basicProperties);
-        }
-
-        /// <summary> Generate "Task" for waiting response </summary>
-        private TaskCompletionSource<string> ResponseTaskSource(string responseQueueName)
-        {
-            var channel = this.Channel();
-
-            var tcsResponse = new TaskCompletionSource<string>();
-            var responseQueue = channel.QueueDeclare(responseQueueName,
-                durable: false,
-                exclusive: true,
-                autoDelete: true,
-                arguments: null);
-
-            var responseConsumer = new AsyncEventingBasicConsumer(channel);
-            responseConsumer.Received += (s, e) =>
-            {
-                var responseMessage = Encoding.UTF8.GetString(e.Body.ToArray());
-                channel.QueueDelete(responseQueueName);
-                tcsResponse.SetResult(responseMessage);
-                return Task.CompletedTask;
-            };
-
-            channel.BasicConsume(queue: responseQueue.QueueName,
-                autoAck: true,
-                consumer: responseConsumer);
-            
-            return tcsResponse;
         }
 
         /// <summary> Convert messageHeaders to Dictionary[string, string] </summary>

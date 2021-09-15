@@ -1,7 +1,47 @@
 ﻿@page "/"
+@using WebAdminService.Data
 
-<h1>Hello, world!</h1>
+@inject MainPageService MainPageService
 
-Welcome to your new app.
+<h1>Welcome!</h1>
+
+@if (this._pingResult == null)
+{
+    <h3>Preparing data...</h3>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Service type</th>
+            <th>Ping status</th>
+        </tr>
+        </thead>
+        <tbody>
+
+            @foreach (var servicesInfo in this._pingResult)
+            {
+                <tr>
+                    <td>@servicesInfo.ServiceType.ToString()</td>
+                    <td>@servicesInfo.PingResultStatusInfo</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
 
 <SurveyPrompt Title="How is Blazor working for you?" />
+
+@code
+{
+
+    MainPageService.ActualServicesInfo[] _pingResult;
+
+    protected override async Task OnInitializedAsync()
+    {
+        this._pingResult = await this.MainPageService.GetActualServices();
+
+    }
+}
