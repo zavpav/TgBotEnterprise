@@ -1,4 +1,4 @@
-﻿namespace InfrastructureServices
+﻿namespace CommonInfrastructure
 {
     /// <summary> Types of Nodes in TgBotSystem </summary>
     public enum EnumInfrastructureServicesType

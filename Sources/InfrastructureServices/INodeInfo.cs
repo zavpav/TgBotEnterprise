@@ -1,4 +1,4 @@
-﻿namespace InfrastructureServices
+﻿namespace CommonInfrastructure
 {
     public interface INodeInfo
     {

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using InfrastructureServices;
+using CommonInfrastructure;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
