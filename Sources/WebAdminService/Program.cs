@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using CommonInfrastructure;
 
 namespace WebAdminService
 {
@@ -13,7 +14,7 @@ namespace WebAdminService
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            ConfigurationServiceExtension.RunApp(CreateHostBuilder(args));
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>

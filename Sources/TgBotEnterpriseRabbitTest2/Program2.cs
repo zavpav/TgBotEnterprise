@@ -10,7 +10,7 @@ namespace TgBotEnterpriseRabbitTest2
     {
         static void Main(string[] args)
         {
-            var nodeInfo = new NodeInfo("T2", EnumInfrastructureServicesType.BuildService, null);
+            var nodeInfo = new NodeInfo("T2", EnumInfrastructureServicesType.BuildService);
             Console.WriteLine($"{nodeInfo.ServicesType} starting...");
 
             var rabbitService = (IRabbitService)new RabbitService(nodeInfo, "localhost", new DirectRequestProcessor2());

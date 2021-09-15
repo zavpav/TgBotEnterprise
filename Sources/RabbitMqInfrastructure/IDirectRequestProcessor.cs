@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace RabbitMqInfrastructure
@@ -17,5 +18,15 @@ namespace RabbitMqInfrastructure
             string actionName,
             IDictionary<string, string> messageHeaders, 
             string directMessage);
+    }
+
+    public class DirectRequestProcessorStub : IDirectRequestProcessor
+    {
+        public Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit, string actionName, IDictionary<string, string> messageHeaders,
+            string directMessage)
+        {
+            Console.WriteLine(actionName);
+            return Task.FromResult("directMessage");
+        }
     }
 }

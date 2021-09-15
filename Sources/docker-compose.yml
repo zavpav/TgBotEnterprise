@@ -1,0 +1,45 @@
+version: '3.4'
+
+services:
+  rabbit:
+    image: rabbitmq:3-management
+    container_name: tg-rabbit
+    ports:
+    - 5672:5672 
+    - 15672:15672
+    hostname: tg-rabbit-mq
+  redmineservice:
+    image: ${DOCKER_REGISTRY-}redmineservice
+    container_name: tg-redmine-service
+    build:
+      context: .
+      dockerfile: RedmineService\Dockerfile
+    environment:
+    - RABBIT_MQ=tg-rabbit-mq
+  jenkinsservice:
+    image: ${DOCKER_REGISTRY-}jenkinsservice
+    container_name: tg-jenkinsservice-service
+    build:
+      context: .
+      dockerfile: JenkinsService\Dockerfile
+    environment:
+    - RABBIT_MQ=tg-rabbit-mq
+
+  mainbotservice:
+    image: ${DOCKER_REGISTRY-}mainbotservice
+    container_name: tg-mainbot-service
+    build:
+      context: .
+      dockerfile: MainBotService\Dockerfile
+    environment:
+    - RABBIT_MQ=tg-rabbit-mq
+  webadminservice:
+    image: ${DOCKER_REGISTRY-}webadminservice
+    container_name: tg-webadmin-service
+    build:
+      context: .
+      dockerfile: WebAdminService/Dockerfile
+    ports:
+    - 8888:80
+    environment:
+    - RABBIT_MQ=tg-rabbit-mq

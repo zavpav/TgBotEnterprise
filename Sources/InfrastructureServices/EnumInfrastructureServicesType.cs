@@ -7,7 +7,7 @@
         Main,
         
         /// <summary> Bugtracking service </summary>
-        BugTracking,
+        BugTracker,
         
         /// <summary> CI-buind service </summary>
         BuildService,

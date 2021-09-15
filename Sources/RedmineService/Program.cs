@@ -4,6 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using CommonInfrastructure;
+using RabbitMqInfrastructure;
+using RedmineService.RabbitCommunication;
 
 namespace RedmineService
 {
@@ -11,13 +14,16 @@ namespace RedmineService
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            ConfigurationServiceExtension.RunApp(CreateHostBuilder(args));
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
+                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(services,
+                        EnumInfrastructureServicesType.BugTracker);
+                    
                     services.AddHostedService<Worker>();
                 });
     }

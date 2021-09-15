@@ -1,11 +1,24 @@
 ﻿@page "/fetchdata"
 
+@using CommonInfrastructure
+@using Microsoft.AspNetCore.Server.HttpSys
 @using WebAdminService.Data
+
 @inject WeatherForecastService ForecastService
 
 <h1>Weather forecast</h1>
 
 <p>This component demonstrates fetching data from a service.</p>
+
+@if (_requestInfo == null)
+{
+    <p><em>Loading request...</em></p>
+}
+else
+{
+    <h1>@_requestInfo</h1>
+
+}
 
 @if (forecasts == null)
 {
@@ -13,6 +26,7 @@
 }
 else
 {
+
     <table class="table">
         <thead>
             <tr>
@@ -23,6 +37,7 @@ else
             </tr>
         </thead>
         <tbody>
+
             @foreach (var forecast in forecasts)
             {
                 <tr>
@@ -39,8 +54,13 @@ else
 @code {
     private WeatherForecast[] forecasts;
 
+    private string? _requestInfo;
+
     protected override async Task OnInitializedAsync()
     {
         forecasts = await ForecastService.GetForecastAsync(DateTime.Now);
+
+        this._requestInfo = await ForecastService.RabbitRequest();
     }
+
 }

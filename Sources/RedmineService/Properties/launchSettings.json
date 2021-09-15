@@ -1,14 +1,18 @@
 {
   "profiles": {
     "RedmineService": {
-      "commandName": "Project",
+      "commandName": "Docker",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"
       },
-      "dotnetRunMessages": "true"
+      "dotnetRunMessages": "true",
+      "DockerfileRunArguments": "--network tg-debug-net"
     },
     "Docker": {
-      "commandName": "Docker"
+      "commandName": "Docker",
+      "environmentVariables": {
+        "RABBIT_MQ": "tg-rabbit"
+      }
     }
   }
 }

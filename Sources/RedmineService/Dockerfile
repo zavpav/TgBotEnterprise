@@ -3,9 +3,13 @@
 FROM mcr.microsoft.com/dotnet/runtime:5.0 AS base
 WORKDIR /app
 
+
 FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
 WORKDIR /src
 COPY ["RedmineService/RedmineService.csproj", "RedmineService/"]
+COPY ["RabbitMqInfrastructure/RabbitMqInfrastructure.csproj", "RabbitMqInfrastructure/"]
+COPY ["InfrastructureServices/CommonInfrastructure.csproj", "InfrastructureServices/"]
+COPY ["CommonConfigurationExtensions/CommonConfigurationExtensions.csproj", "CommonConfigurationExtensions/"]
 RUN dotnet restore "RedmineService/RedmineService.csproj"
 COPY . .
 WORKDIR "/src/RedmineService"

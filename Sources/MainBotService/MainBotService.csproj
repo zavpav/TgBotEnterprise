@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CommonConfigurationExtensions\CommonConfigurationExtensions.csproj" />
     <ProjectReference Include="..\InfrastructureServices\CommonInfrastructure.csproj" />
     <ProjectReference Include="..\RabbitMqInfrastructure\RabbitMqInfrastructure.csproj" />
   </ItemGroup>

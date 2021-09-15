@@ -10,7 +10,7 @@ namespace TgBotEnterprise
     {
         static void Main(string[] args)
         {
-            var nodeInfo = new NodeInfo("T1", EnumInfrastructureServicesType.Main, null);
+            var nodeInfo = new NodeInfo("T1", EnumInfrastructureServicesType.Main);
 
             Console.WriteLine($"{nodeInfo.ServicesType} starting...");
 
@@ -24,6 +24,16 @@ namespace TgBotEnterprise
             );
 
             var res = respTask.GetAwaiter().GetResult();
+            Console.WriteLine(res);
+
+
+            respTask = rabbitService.DirectRequest(EnumInfrastructureServicesType.BugTracker,
+                "Processss",
+                "Привепт.123ываasdfdas"
+            );
+
+
+            res = respTask.GetAwaiter().GetResult();
             Console.WriteLine(res);
 
 
