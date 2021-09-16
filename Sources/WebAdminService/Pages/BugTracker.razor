@@ -1,0 +1,27 @@
+﻿@page "/BugTracker"
+@using WebAdminService.Data
+
+@inject BugTrackerService BugTrackerService
+
+<h3>BugTracker</h3>
+@if (this._data == null)
+{
+    <h3>Preparing data...</h3>
+}
+else
+{
+<code>
+    @this._data
+</code>
+    
+}
+
+@code {
+    string? _data;
+
+    protected override async Task OnInitializedAsync()
+    {
+        this._data = await this.BugTrackerService.GetAnyData();
+
+    }
+}
