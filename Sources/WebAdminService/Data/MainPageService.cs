@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using CommonInfrastructure;
@@ -18,8 +19,8 @@ namespace WebAdminService.Data
 
         public async Task<ActualServicesInfo[]> GetActualServices()
         {
+            var sw = Stopwatch.StartNew();
             var tasks = new List<Tuple<EnumInfrastructureServicesType, Task<string>>>();
-
             
             foreach (var servicesType in Enum.GetValues<EnumInfrastructureServicesType>())
             {
@@ -42,7 +43,8 @@ namespace WebAdminService.Data
                     result.Add(new ActualServicesInfo(serviceType, "Request failed Timout"));
                 }
             }
-
+            sw.Stop();
+            
             return result.ToArray();
         }
 

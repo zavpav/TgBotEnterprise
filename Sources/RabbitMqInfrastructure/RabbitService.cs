@@ -184,7 +184,7 @@ namespace RabbitMqInfrastructure
             using (var timeoutCancellationTokenSource = new CancellationTokenSource())
             {
 
-                var completedTask = await Task.WhenAny(tcsResponse.Task, Task.Delay(10000, timeoutCancellationTokenSource.Token));
+                var completedTask = await Task.WhenAny(tcsResponse.Task, Task.Delay(TimeSpan.FromSeconds(10), timeoutCancellationTokenSource.Token));
                 if (completedTask == tcsResponse.Task)
                 {
                     timeoutCancellationTokenSource.Cancel();

@@ -4,6 +4,7 @@
     <TargetFramework>net5.0</TargetFramework>
     <UserSecretsId>dotnet-RedmineService-A99F1FC0-09B6-4119-B58B-65DFBA0C0EF9</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,5 +16,9 @@
     <ProjectReference Include="..\CommonConfigurationExtensions\CommonConfigurationExtensions.csproj" />
     <ProjectReference Include="..\InfrastructureServices\CommonInfrastructure.csproj" />
     <ProjectReference Include="..\RabbitMqInfrastructure\RabbitMqInfrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\" />
   </ItemGroup>
 </Project>
