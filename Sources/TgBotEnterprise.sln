@@ -31,6 +31,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Endpoins", "Endpoins", "{02
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MainBot", "MainBot", "{EE8CD84B-576B-4180-B5A1-06EE2E851AAB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelegramService", "TelegramService\TelegramService.csproj", "{74D40EDC-DCE0-4134-AC40-FA8FC4ECBB7F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -77,6 +79,10 @@ Global
 		{20E404C2-3DFA-47C8-B0FE-36FBD235BA81}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{20E404C2-3DFA-47C8-B0FE-36FBD235BA81}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{20E404C2-3DFA-47C8-B0FE-36FBD235BA81}.Release|Any CPU.Build.0 = Release|Any CPU
+		{74D40EDC-DCE0-4134-AC40-FA8FC4ECBB7F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{74D40EDC-DCE0-4134-AC40-FA8FC4ECBB7F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{74D40EDC-DCE0-4134-AC40-FA8FC4ECBB7F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{74D40EDC-DCE0-4134-AC40-FA8FC4ECBB7F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -89,6 +95,7 @@ Global
 		{E9CD40F9-EDA6-408F-8357-9131DC7B8606} = {026D1BAB-1D9D-456B-A53C-35E17F3AA768}
 		{DD359339-1DF7-4E5F-9DCA-C4EB940368BC} = {EE8CD84B-576B-4180-B5A1-06EE2E851AAB}
 		{85816E1F-4347-4E9F-8A54-C7783F07BE57} = {5CCEB3EE-77D8-4B49-A628-F174ED0FE590}
+		{74D40EDC-DCE0-4134-AC40-FA8FC4ECBB7F} = {026D1BAB-1D9D-456B-A53C-35E17F3AA768}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B7136652-FED7-41E9-9302-1EF976839CC1}

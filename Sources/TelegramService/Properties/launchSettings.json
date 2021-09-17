@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "TelegramService": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      },
+      "dotnetRunMessages": "true"
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "environmentVariables": {
+        "RABBIT_MQ": "localhost"
+      }
+    }
+  }
+}

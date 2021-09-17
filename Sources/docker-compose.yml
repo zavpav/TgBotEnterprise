@@ -26,6 +26,7 @@ services:
       dockerfile: JenkinsService\Dockerfile
     environment:
     - RABBIT_MQ=tg-rabbit-mq
+    - NODE_NAME=Jenkins
     volumes:
     - ../DockerVolumes/JenkinsConfig/Secretic:/app/Secretic
   mainbotservice:
@@ -49,6 +50,19 @@ services:
     environment:
     - RABBIT_MQ=tg-rabbit-mq
 
+  telegramservice:
+    image: ${DOCKER_REGISTRY-}telegramservice
+    container_name: tg-telegram-service
+    build:
+      context: .
+      dockerfile: TelegramService/Dockerfile
+    environment:
+    - RABBIT_MQ=tg-rabbit-mq
+    - NODE_NAME=Telegram
+    volumes:
+    - ../DockerVolumes/Telegram/Secretic:/app/Secretic
+
+#logger? elastic? graylog?
 
   vault:
     image: vault
