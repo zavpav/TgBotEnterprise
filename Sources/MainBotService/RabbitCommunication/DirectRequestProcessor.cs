@@ -20,6 +20,11 @@ namespace MainBotService.RabbitCommunication
             IDictionary<string, string> messageHeaders,
             string directMessage)
         {
+            if (actionName.ToUpper() == "PING")
+            {
+                return "OK"; // Check only existing service
+            } 
+
             await Task.Delay(9000);
             Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
             return directMessage;

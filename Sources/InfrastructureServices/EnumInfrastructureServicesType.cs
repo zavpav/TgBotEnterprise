@@ -15,8 +15,8 @@
         /// <summary> Messaging service </summary>
         Messaging,
 
-        /// <summary> Git service </summary>
-        Git,
+        ///// <summary> Git service </summary>
+        //Git,
 
         /// <summary> Web admin </summary>
         WebAdmin
