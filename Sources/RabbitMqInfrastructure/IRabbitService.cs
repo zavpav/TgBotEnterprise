@@ -5,6 +5,8 @@ using CommonInfrastructure;
 
 namespace RabbitMqInfrastructure
 {
+    public delegate Task ProcessMessage(string message, IDictionary<string, string> rabbitMessageHeaders);
+
     public interface IRabbitService
     {
         /// <summary> Initialize </summary>
@@ -25,6 +27,6 @@ namespace RabbitMqInfrastructure
         /// <param name="serviceType">Service type</param>
         /// <param name="actionName">Action. If null - subcribe all for service</param>
         /// <param name="processFunc">Func generate Task for processing message params[message, headers]</param>
-        void Subscribe(EnumInfrastructureServicesType serviceType, string? actionName, Func<string, IDictionary<string, string>, Task> processFunc);
+        void Subscribe(EnumInfrastructureServicesType serviceType, string? actionName, ProcessMessage processFunc);
     }
 }

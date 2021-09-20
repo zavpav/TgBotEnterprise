@@ -229,7 +229,7 @@ namespace RabbitMqInfrastructure
         /// <param name="serviceType">Service type</param>
         /// <param name="actionName">Action. If null - subcribe all for service</param>
         /// <param name="processFunc">Func generate Task for processing message params[message, headers]</param>
-        public void Subscribe(EnumInfrastructureServicesType serviceType, string? actionName, Func<string, IDictionary<string, string>, Task> processFunc)
+        public void Subscribe(EnumInfrastructureServicesType serviceType, string? actionName, ProcessMessage processFunc)
         {
             var channel = this.Channel();
 

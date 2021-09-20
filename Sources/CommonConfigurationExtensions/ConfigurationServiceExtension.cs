@@ -44,10 +44,11 @@ namespace CommonInfrastructure
             
         }
 
-        public static void RunApp(IHostBuilder hostBuilder)
+        public static void RunApp(IHostBuilder hostBuilder, Action<IHost>? initilizeAction = null)
         {
             var host = hostBuilder.Build();
             host.Services.GetRequiredService<IRabbitService>().Initialize();
+            initilizeAction?.Invoke(host);
             host.Run();
         }
     }

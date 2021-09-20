@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using CommonInfrastructure;
+using MainBotService.Bot;
 using MainBotService.RabbitCommunication;
 using RabbitMqInfrastructure;
 
@@ -14,7 +15,9 @@ namespace MainBotService
     {
         public static void Main(string[] args)
         {
-            ConfigurationServiceExtension.RunApp(CreateHostBuilder(args));
+            ConfigurationServiceExtension.RunApp(
+                CreateHostBuilder(args), 
+                h => h.Services.GetRequiredService<IMainBot>().Initialize());
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
@@ -23,6 +26,8 @@ namespace MainBotService
                 {
                     ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(services,
                         EnumInfrastructureServicesType.Main);
+
+                    services.AddSingleton<IMainBot, MainBot>();
 
                     services.AddHostedService<Worker>();
                 });

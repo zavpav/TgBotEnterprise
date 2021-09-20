@@ -27,7 +27,10 @@ namespace CommonInfrastructure
             {
                 var basicAuthToken = Convert.ToBase64String(Encoding.Default.GetBytes(authInfo.Login + ":" + authInfo.Password));
                 request.Headers["Authorization"] = "Basic " + basicAuthToken;
-
+            }
+            else
+            {
+                throw new NotSupportedException("Undefined AuthType");
             }
         }
 
@@ -42,7 +45,7 @@ namespace CommonInfrastructure
         {
             var reTry = 0;
             var unauthorizedReTry = false;
-            Exception ex = null;
+            Exception? ex = null;
 
 
             while (reTry < DefaultReTriesCount)
