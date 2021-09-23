@@ -19,8 +19,8 @@ namespace CommonInfrastructure
         }
 
         public static void Information(this ILogger logger,
-            Exception exception,
             IRabbitMessage processingMessage,
+            Exception exception,
             string templateMessage,
             params object[] parts
         )
@@ -39,8 +39,8 @@ namespace CommonInfrastructure
                 .Warning(templateMessage, parts);
         }
         public static void Warning(this ILogger logger,
-            Exception exception,
             IRabbitMessage processingMessage,
+            Exception exception,
             string templateMessage,
             params object[] parts
         )
@@ -59,8 +59,8 @@ namespace CommonInfrastructure
                 .Error(templateMessage, parts);
         }
         public static void Error(this ILogger logger,
-            Exception exception,
             IRabbitMessage processingMessage,
+            Exception exception,
             string templateMessage,
             params object[] parts
         )
@@ -79,8 +79,8 @@ namespace CommonInfrastructure
                 .Fatal(templateMessage, parts);
         }
         public static void Fatal(this ILogger logger,
-            Exception exception,
             IRabbitMessage processingMessage,
+            Exception exception,
             string templateMessage,
             params object[] parts
         )

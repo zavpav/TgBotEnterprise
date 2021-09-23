@@ -30,7 +30,7 @@ services:
     environment:
     - ACCEPT_EULA=Y
     volumes:
-    - ../DockerVolumes/Seq/Logs:/path/to/seq/data
+    - ../DockerVolumes/Seq/Logs:/data
   redmineservice:
     image: ${DOCKER_REGISTRY-}redmineservice
     container_name: tg-redmine-service

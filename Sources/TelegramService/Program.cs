@@ -48,7 +48,7 @@ namespace TelegramService
                         Console.WriteLine($"PostgreConnection: {postgreHost}:{postgrePort}");
                         optionsBuilder.UseNpgsql($"Host={postgreHost};Port={postgrePort};Database=telegram;Username=postgres;Password=123456")
                             .LogTo(Console.WriteLine, LogLevel.Information)
-                            .EnableSensitiveDataLogging()
+                            //.EnableSensitiveDataLogging()
                             .EnableDetailedErrors();
                     });
 
