@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using CommonInfrastructure;
-using MainBotService.Bot;
+using MainBotService.MainBotParts;
 using MainBotService.RabbitCommunication;
 using RabbitMqInfrastructure;
 
@@ -16,20 +16,21 @@ namespace MainBotService
         public static void Main(string[] args)
         {
             ConfigurationServiceExtension.RunApp(
-                CreateHostBuilder(args), 
-                h => h.Services.GetRequiredService<IMainBot>().Initialize());
+                CreateHostBuilder(args)
+                //, h => h.Services.GetRequiredService<IMainBot>().Initialize()
+                );
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
-                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(services,
+                    var configuration = hostContext.Configuration;
+                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
                         EnumInfrastructureServicesType.Main);
 
-                    services.AddSingleton<IMainBot, MainBot>();
-
-                    services.AddHostedService<Worker>();
+                    services.AddSingleton<TelegramProcessor>();
+                    services.AddHostedService<MainBotWorker>();
                 });
     }
 }

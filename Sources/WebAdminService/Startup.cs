@@ -28,7 +28,8 @@ namespace WebAdminService
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessorStub>(services, 
+            var configuration = this.Configuration;
+            ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessorStub>(configuration, services, 
                 EnumInfrastructureServicesType.WebAdmin);
 
             services.AddRazorPages();

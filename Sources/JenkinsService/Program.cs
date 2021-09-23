@@ -21,7 +21,8 @@ namespace JenkinsService
             Host.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
-                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(services,
+                    var configuration = hostContext.Configuration;
+                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
                         EnumInfrastructureServicesType.BuildService);
 
                     services.AddHostedService<Worker>();

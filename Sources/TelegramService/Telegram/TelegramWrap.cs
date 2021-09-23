@@ -1,10 +1,15 @@
-﻿using System.Linq;
-using System.Threading;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading.Tasks;
+using CommonInfrastructure;
+using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMqInfrastructure;
 using Telegram.Bot;
-using Telegram.Bot.Args;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
+using TelegramService.Database;
 
 namespace TelegramService.Telegram
 {
@@ -17,25 +22,23 @@ namespace TelegramService.Telegram
 
     public class TelegramWrap : ITelegramWrap
     {
+        private readonly TgServiceDbContext _dbContext;
         private readonly ITelegramBotClient _telegramBot;
         private readonly IRabbitService _rabbitService;
+        private readonly IGlobalIncomeIdGenerator _globalIncomeIdGenerator;
 
         private int _tgMessageOffset;
 
-        public TelegramWrap(ITelegramBotClient telegramBot, IRabbitService rabbitService)
+        public TelegramWrap(ITelegramBotClient telegramBot, 
+            IRabbitService rabbitService,
+            IGlobalIncomeIdGenerator globalIncomeIdGenerator,
+            TgServiceDbContext dbContext)
         {
+            this._dbContext = dbContext;
             this._telegramBot = telegramBot;
-            _rabbitService = rabbitService;
-
-//            this._telegramBot.OnApiResponseReceived += this.OnApiResponseReceived;
+            this._rabbitService = rabbitService;
+            this._globalIncomeIdGenerator = globalIncomeIdGenerator;
         }
-
-        //private async ValueTask OnApiResponseReceived(ITelegramBotClient botclient, 
-        //            ApiResponseEventArgs args, 
-        //            CancellationToken cancellationtoken)
-        //{
-        //    await Task.Delay(10);
-        //}
 
         public async Task Pull()
         {
@@ -45,38 +48,89 @@ namespace TelegramService.Telegram
             {
                 foreach (var msg in messages)
                 {
-                    var messageData = new TelegramIncomeMessage
-                    {
-                        UpdateId = msg.Id,
-                    };
-                    var isProcessed = false;
+                    var incomeId = this._globalIncomeIdGenerator.GetNextIncomeId();
+                    var tgMsg = msg.Message ?? msg.EditedMessage;
 
-                    if (msg.Message != null)
+                    if (tgMsg != null)
                     {
-                        isProcessed = true;
-                        messageData.IsEdited = false;
-                        messageData.ChatId = msg.Message.Chat.Id;
-                        messageData.Message = msg.Message.Text;
-                        messageData.MessageId = msg.Message.MessageId;
-                        messageData.TelegramUserId = msg.Message.From.Id;
-                    }
-                    else if (msg.EditedMessage != null)
-                    {
-                        isProcessed = true;
-                        messageData.IsEdited = true;
-                        messageData.ChatId = msg.EditedMessage.Chat.Id;
-                        messageData.Message = msg.EditedMessage.Text;
-                        messageData.MessageId = msg.EditedMessage.MessageId;
-                        messageData.TelegramUserId = msg.EditedMessage.From.Id;
-                    }
+                        var messageData = new TelegramIncomeMessage
+                        {
+                            UpdateId = msg.Id,
+                            IncomeId = incomeId,
+                            ChatId = tgMsg.Chat.Id,
+                            IsDirectMessage = tgMsg.Chat.Type == ChatType.Private,
+                            MessageText = tgMsg.Text,
+                            MessageId = tgMsg.MessageId,
+                            TelegramUserId = tgMsg.From.Id,
+                            BotUserId = await this.DefineBotUserId(tgMsg.From),
+                        };
 
-                    if (isProcessed)
+                        if (msg.EditedMessage != null)
+                            messageData.IsEdited = true;
+
                         await this._rabbitService.PublishInformation(RabbitMessages.TelegramMessageReceived, messageData);
+                    }
                 }
 
                 this._tgMessageOffset = messages.Max(x => x.Id) + 1;
             }
         }
+
+        #region UserCache
+
+        private ConcurrentBag<UserCache> _usersCache = new ConcurrentBag<UserCache>();
+
+        private async Task<string> DefineBotUserId(User telegramUser)
+        {
+            var usr = this._usersCache.FirstOrDefault(x => x.TelegramUserId == telegramUser.Id);
+
+            if (usr.Equals(default))
+            {
+                var usrInfo = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.TelegramUserId == telegramUser.Id);
+                if (usrInfo?.BotUserId != null)
+                {
+                    // Exists activated user
+                    if (usrInfo.IsActive)
+                        this._usersCache.Add(new UserCache(usrInfo.TelegramUserId, usrInfo.DefaultChatId, usrInfo.BotUserId));
+
+                    return usrInfo.BotUserId;
+                }
+            }
+
+            Console.WriteLine($"Undefined user:  UserName: {telegramUser.Username} LastName: {telegramUser.LastName} FirstName: {telegramUser.FirstName}");
+            return GlobalConstants.UndefinedBotUserId;
+        }
+
+        private struct UserCache
+        {
+            public UserCache(long telegramUserId, long? defaultChatId, string botUserId)
+            {
+                this.TelegramUserId = telegramUserId;
+                this.DefaultChatId = defaultChatId;
+                this.BotUserId = botUserId;
+            }
+
+            public long TelegramUserId { get; }
+            public long? DefaultChatId { get; }
+            public string BotUserId { get; }
+
+            public bool Equals(UserCache other)
+            {
+                return TelegramUserId == other.TelegramUserId && DefaultChatId == other.DefaultChatId && BotUserId == other.BotUserId;
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is UserCache other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(TelegramUserId, DefaultChatId, BotUserId);
+            }
+        }
+
+        #endregion
 
         public Task Initialize()
         {

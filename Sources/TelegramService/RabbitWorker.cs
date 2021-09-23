@@ -23,7 +23,7 @@ namespace TelegramService
             this._telegramWrap = telegramWrap;
         }
 
-        private Task OutgoingMessageProcess(TelegramOutgoingMessage messageData, IDictionary<string, string> rabbitMessageheaders)
+        private Task OutgoingMessageProcess(TelegramOutgoingMessage messageData, IDictionary<string, string> rabbitMessageHeaders)
         {
             return this._telegramWrap.SendMessage(messageData);
         }

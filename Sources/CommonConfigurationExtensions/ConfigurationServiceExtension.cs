@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RabbitMqInfrastructure;
@@ -15,20 +16,22 @@ namespace CommonInfrastructure
         public const string RabbitMq = "RABBIT_MQ";
 
         
-        public static void ConfigureServices<TDirectRequestProcessor>(IServiceCollection services, 
-                    EnumInfrastructureServicesType servicesType
-                )
+        public static void ConfigureServices<TDirectRequestProcessor>(IConfiguration configuration,
+            IServiceCollection services,
+            EnumInfrastructureServicesType servicesType)
             where TDirectRequestProcessor : class, IDirectRequestProcessor
         {
-            var variables = Environment.GetEnvironmentVariables();
-            var currentNode = (string?)variables[CurrentNodeName]
+            var currentNode = configuration.GetValue<string?>(CurrentNodeName)
                               ?? servicesType.ToString();
             var nodeInfo = new NodeInfo(currentNode, servicesType);
             services.AddSingleton<INodeInfo>(nodeInfo);
 
+            services.AddSingleton<IGlobalIncomeIdGenerator, GlobalIncomeIdGenerator>();
+
+            
             services.AddTransient<TDirectRequestProcessor>();
 
-            var rabbitHost = (string?)variables[RabbitMq]
+            var rabbitHost = configuration.GetValue<string?>(RabbitMq)
                              ?? throw new NotSupportedException("Rabbit host is not definition");
 
             services.AddSingleton<IRabbitService>(f =>

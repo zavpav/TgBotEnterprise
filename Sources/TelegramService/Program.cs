@@ -7,8 +7,10 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using CommonInfrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Telegram.Bot;
+using TelegramService.Database;
 using TelegramService.RabbitCommunication;
 using TelegramService.Telegram;
 
@@ -29,11 +31,25 @@ namespace TelegramService
             Host.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
-                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(services,
+                    var configuration = hostContext.Configuration;
+                    
+                    services.AddDbContext<TgServiceDbContext>(optionsBuilder =>
+                    {
+                        var postgreHost = configuration.GetValue<string?>("POSTGRE_HOST")
+                                          ?? throw new NotSupportedException("Postgre host is not initialized");
+                        var postgrePort = configuration.GetValue<string?>("POSTGRE_PORT")
+                                          ?? throw new NotSupportedException("Postgre port is not initialized");
+
+                        Console.WriteLine($"PostgreConnection: {postgreHost}:{postgrePort}");
+                        optionsBuilder.UseNpgsql($"Host={postgreHost};Port={postgrePort};Database=telegram;Username=postgres;Password=123456");
+                    });
+
+                    
+
+                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
                         EnumInfrastructureServicesType.Messaging);
 
-                    var variables = Environment.GetEnvironmentVariables();
-                    var tgKey = (string?) variables["TelegramKey"];
+                    var tgKey = configuration.GetValue<string?>("TELEGRAM_KEY");
 
                     try
                     {
@@ -48,6 +64,7 @@ namespace TelegramService
                     if (tgKey == null)
                         throw new NotSupportedException("TelegramKey undefined");
 
+                    
                     services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(tgKey));
                     services.AddSingleton<ITelegramWrap, TelegramWrap>();
 

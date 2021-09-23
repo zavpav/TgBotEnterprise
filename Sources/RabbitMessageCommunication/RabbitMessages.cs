@@ -9,9 +9,10 @@ namespace RabbitMessageCommunication
     public static class RabbitMessages
     {
         /// <summary> Telegram service received a message from user </summary>
-        public const string TelegramMessageReceived = "TG_INCOME_MESSAGE";
+        public const string TelegramMessageReceived = "TelegramIncomeMessage";
 
         /// <summary> Telegram service must send a message </summary>
-        public const string TelegramOutgoingMessage = "TG_OUTGOING_MESSAGE";
+        public const string TelegramOutgoingMessage = "TelegramOutgoingMessage";
+
     }
 }
