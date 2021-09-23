@@ -5,7 +5,7 @@ namespace TelegramService.Database
 {
     public class DtoUserInfo
     {
-        /// <summary> Syntetic ID </summary>
+        /// <summary> Synthetic ID </summary>
         [Required]
         public int Id { get; set; }
         

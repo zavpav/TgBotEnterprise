@@ -6,6 +6,7 @@ using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMqInfrastructure;
+using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -22,6 +23,7 @@ namespace TelegramService.Telegram
 
     public class TelegramWrap : ITelegramWrap
     {
+        private readonly ILogger _logger;
         private readonly TgServiceDbContext _dbContext;
         private readonly ITelegramBotClient _telegramBot;
         private readonly IRabbitService _rabbitService;
@@ -29,11 +31,13 @@ namespace TelegramService.Telegram
 
         private int _tgMessageOffset;
 
-        public TelegramWrap(ITelegramBotClient telegramBot, 
+        public TelegramWrap(ILogger logger,
+            ITelegramBotClient telegramBot, 
             IRabbitService rabbitService,
             IGlobalIncomeIdGenerator globalIncomeIdGenerator,
             TgServiceDbContext dbContext)
         {
+            this._logger = logger;
             this._dbContext = dbContext;
             this._telegramBot = telegramBot;
             this._rabbitService = rabbitService;
@@ -50,7 +54,6 @@ namespace TelegramService.Telegram
                 {
                     var incomeId = this._globalIncomeIdGenerator.GetNextIncomeId();
                     var tgMsg = msg.Message ?? msg.EditedMessage;
-
                     if (tgMsg != null)
                     {
                         var messageData = new TelegramIncomeMessage
@@ -67,6 +70,16 @@ namespace TelegramService.Telegram
 
                         if (msg.EditedMessage != null)
                             messageData.IsEdited = true;
+
+                        this._logger
+                            .ForContext("TelegramUser", 
+                                new { 
+                                    UserName = tgMsg.From.Username, 
+                                    LastName = tgMsg.From.LastName,
+                                    FirstName = tgMsg.From.FirstName
+                                    }
+                            )
+                            .Information(messageData, "Process telegram message {@incomeMessage}", messageData);
 
                         await this._rabbitService.PublishInformation(RabbitMessages.TelegramMessageReceived, messageData);
                     }

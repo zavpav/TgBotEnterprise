@@ -1,7 +1,7 @@
 ﻿namespace RabbitMessageCommunication
 {
     /// <summary> Income telegram message </summary>
-    public class TelegramIncomeMessage
+    public class TelegramIncomeMessage : IRabbitMessage
     {
         /// <summary> Message Income Id - Unique id in all services </summary>
         public string IncomeId { get; set; }

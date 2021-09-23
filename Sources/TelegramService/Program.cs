@@ -1,14 +1,16 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using RabbitMessageCommunication;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 using Telegram.Bot;
 using TelegramService.Database;
 using TelegramService.RabbitCommunication;
@@ -29,10 +31,13 @@ namespace TelegramService
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseSerilog()
                 .ConfigureServices((hostContext, services) =>
                 {
                     var configuration = hostContext.Configuration;
-                    
+                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
+                        EnumInfrastructureServicesType.Messaging);
+
                     services.AddDbContext<TgServiceDbContext>(optionsBuilder =>
                     {
                         var postgreHost = configuration.GetValue<string?>("POSTGRE_HOST")
@@ -41,14 +46,13 @@ namespace TelegramService
                                           ?? throw new NotSupportedException("Postgre port is not initialized");
 
                         Console.WriteLine($"PostgreConnection: {postgreHost}:{postgrePort}");
-                        optionsBuilder.UseNpgsql($"Host={postgreHost};Port={postgrePort};Database=telegram;Username=postgres;Password=123456");
+                        optionsBuilder.UseNpgsql($"Host={postgreHost};Port={postgrePort};Database=telegram;Username=postgres;Password=123456")
+                            .LogTo(Console.WriteLine, LogLevel.Information)
+                            .EnableSensitiveDataLogging()
+                            .EnableDetailedErrors();
                     });
 
                     
-
-                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
-                        EnumInfrastructureServicesType.Messaging);
-
                     var tgKey = configuration.GetValue<string?>("TELEGRAM_KEY");
 
                     try
@@ -72,4 +76,5 @@ namespace TelegramService
                     services.AddHostedService<TgPullWorker>();
                 });
     }
+
 }

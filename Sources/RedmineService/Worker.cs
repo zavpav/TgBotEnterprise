@@ -1,18 +1,15 @@
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace RedmineService
 {
     public class Worker : BackgroundService
     {
-        private readonly ILogger<Worker> _logger;
+        private readonly ILogger _logger;
 
-        public Worker(ILogger<Worker> logger)
+        public Worker(ILogger logger)
         {
             _logger = logger;
         }

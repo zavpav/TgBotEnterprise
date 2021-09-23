@@ -1,12 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using CommonInfrastructure;
-using RabbitMqInfrastructure;
 using RedmineService.RabbitCommunication;
+using Serilog;
+using Serilog.Events;
 
 namespace RedmineService
 {
@@ -19,12 +17,13 @@ namespace RedmineService
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseSerilog()
                 .ConfigureServices((hostContext, services) =>
                 {
                     var configuration = hostContext.Configuration;
                     ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
                         EnumInfrastructureServicesType.BugTracker);
-                    
+
                     services.AddHostedService<Worker>();
                 });
     }

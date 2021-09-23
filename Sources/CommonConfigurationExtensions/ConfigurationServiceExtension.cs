@@ -3,6 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RabbitMqInfrastructure;
+using Serilog;
+using Serilog.Events;
 
 namespace CommonInfrastructure
 {
@@ -28,7 +30,21 @@ namespace CommonInfrastructure
 
             services.AddSingleton<IGlobalIncomeIdGenerator, GlobalIncomeIdGenerator>();
 
-            
+            var seqLogger = Environment.GetEnvironmentVariable("LOGGER_HOST");
+            if (seqLogger != null)
+            {
+                Log.Logger = new LoggerConfiguration()
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    .Enrich.FromLogContext()
+                    .Enrich.WithProperty("InfrastructureType", nodeInfo.ServicesType)
+                    .Enrich.WithProperty("InfrastructureNodeName", nodeInfo.NodeName)
+                    .WriteTo.Seq(serverUrl: $"http://{seqLogger}:5341", LogEventLevel.Information)
+                    .WriteTo.Console()
+                    .CreateLogger();
+            }
+            services.AddTransient<Serilog.ILogger>(p => Log.Logger);
+
+
             services.AddTransient<TDirectRequestProcessor>();
 
             var rabbitHost = configuration.GetValue<string?>(RabbitMq)
@@ -41,10 +57,6 @@ namespace CommonInfrastructure
                     f.GetRequiredService<TDirectRequestProcessor>());
                 return rabbitService;
             });
-
-            
-
-            
         }
 
         public static void RunApp(IHostBuilder hostBuilder, Action<IHost>? initilizeAction = null)

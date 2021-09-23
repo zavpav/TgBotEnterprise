@@ -1,13 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using CommonInfrastructure;
 using MainBotService.MainBotParts;
 using MainBotService.RabbitCommunication;
-using RabbitMqInfrastructure;
+using Serilog;
 
 namespace MainBotService
 {
@@ -23,6 +19,7 @@ namespace MainBotService
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseSerilog()
                 .ConfigureServices((hostContext, services) =>
                 {
                     var configuration = hostContext.Configuration;

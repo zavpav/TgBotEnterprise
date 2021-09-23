@@ -3,20 +3,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommonInfrastructure;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using RabbitMessageCommunication;
 using RabbitMqInfrastructure;
+using Serilog;
 using TelegramService.Telegram;
 
 namespace TelegramService
 {
     public class RabbitWorker : BackgroundService
     {
-        private readonly ILogger<TgPullWorker> _logger;
+        private readonly ILogger _logger;
         private readonly ITelegramWrap _telegramWrap;
         private readonly IRabbitService _rabbitService;
 
-        public RabbitWorker(ILogger<TgPullWorker> logger, IRabbitService rabbitService, ITelegramWrap telegramWrap)
+        public RabbitWorker(ILogger logger, IRabbitService rabbitService, ITelegramWrap telegramWrap)
         {
             this._logger = logger;
             this._rabbitService = rabbitService;

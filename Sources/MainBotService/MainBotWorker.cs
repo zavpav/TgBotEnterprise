@@ -1,24 +1,22 @@
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommonInfrastructure;
 using MainBotService.MainBotParts;
 using RabbitMessageCommunication;
 using RabbitMqInfrastructure;
+using Serilog;
 
 namespace MainBotService
 {
     public class MainBotWorker : BackgroundService
     {
-        private readonly ILogger<MainBotWorker> _logger;
+        private readonly ILogger _logger;
         private readonly IRabbitService _rabbitService;
         private readonly TelegramProcessor _telegramProcessor;
 
-        public MainBotWorker(ILogger<MainBotWorker> logger, 
+        public MainBotWorker(ILogger logger, 
             IRabbitService rabbitService,
             TelegramProcessor telegramProcessor)
         {

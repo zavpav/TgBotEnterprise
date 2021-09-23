@@ -1,20 +1,17 @@
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
 using TelegramService.Telegram;
 
 namespace TelegramService
 {
     public class TgPullWorker : BackgroundService
     {
-        private readonly ILogger<TgPullWorker> _logger;
+        private readonly ILogger _logger;
         private readonly ITelegramWrap _telegramWrap;
 
-        public TgPullWorker(ILogger<TgPullWorker> logger, ITelegramWrap telegramWrap)
+        public TgPullWorker(ILogger logger, ITelegramWrap telegramWrap)
         {
             this._logger = logger;
             this._telegramWrap = telegramWrap;

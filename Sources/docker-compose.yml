@@ -20,6 +20,17 @@ services:
     - 5672:5672 
     - 15672:15672
     hostname: tg-rabbit-mq
+  logger:
+    image: datalust/seq:2020.1
+    container_name: tg-seq
+    ports:
+    - 5341:80
+    - 8889:80
+    hostname: tg-seq-logger
+    environment:
+    - ACCEPT_EULA=Y
+    volumes:
+    - ../DockerVolumes/Seq/Logs:/path/to/seq/data
   redmineservice:
     image: ${DOCKER_REGISTRY-}redmineservice
     container_name: tg-redmine-service
@@ -29,6 +40,7 @@ services:
     environment:
     - RABBIT_MQ=tg-rabbit-mq
     - NODE_NAME=Redmine
+    - LOGGER_HOST=tg-seq-logger
     volumes:
     - ../DockerVolumes/RedmineConfig/Secretic:/app/Secretic
   jenkinsservice:
@@ -40,6 +52,7 @@ services:
     environment:
     - RABBIT_MQ=tg-rabbit-mq
     - NODE_NAME=Jenkins
+    - LOGGER_HOST=tg-seq-logger
     volumes:
     - ../DockerVolumes/JenkinsConfig/Secretic:/app/Secretic
   mainbotservice:
@@ -50,6 +63,7 @@ services:
       dockerfile: MainBotService\Dockerfile
     environment:
     - RABBIT_MQ=tg-rabbit-mq
+    - LOGGER_HOST=tg-seq-logger
     volumes:
     - ../DockerVolumes/MainBot/Secretic:/app/Secretic
   webadminservice:
@@ -62,6 +76,7 @@ services:
     - 8888:80
     environment:
     - RABBIT_MQ=tg-rabbit-mq
+    - LOGGER_HOST=tg-seq-logger
 
   telegramservice:
     image: ${DOCKER_REGISTRY-}telegramservice
@@ -72,12 +87,13 @@ services:
     environment:
     - RABBIT_MQ=tg-rabbit-mq
     - NODE_NAME=Telegram
+    - LOGGER_HOST=tg-seq-logger
+
     - POSTGRE_HOST=tg-postgre
     - POSTGRE_PORT=5432
     - TELEGRAM_KEY=undef
     volumes:
     - ../DockerVolumes/Telegram/Secretic:/app/Secretic
-
 # secret  - vault
 # gateway - Traefik 
 # logger  - seq for start
