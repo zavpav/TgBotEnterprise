@@ -3,7 +3,7 @@
 namespace CommonInfrastructure
 {
 
-    public interface IGlobalIncomeIdGenerator
+    public interface IGlobalEventIdGenerator
     {
         /// <summary> Generate global income message id (NodeType.NodeName.UniqueString) </summary>
         /// <returns></returns>
@@ -15,12 +15,12 @@ namespace CommonInfrastructure
     }
 
 
-    public class GlobalIncomeIdGenerator : IGlobalIncomeIdGenerator
+    public class GlobalEventIdGenerator : IGlobalEventIdGenerator
     {
         private readonly INodeInfo _nodeInfo;
         private long _counter;
 
-        public GlobalIncomeIdGenerator(INodeInfo nodeInfo)
+        public GlobalEventIdGenerator(INodeInfo nodeInfo)
         {
             this._nodeInfo = nodeInfo;
             // TODO need to update from database

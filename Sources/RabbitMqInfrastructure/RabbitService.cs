@@ -6,11 +6,14 @@ using System.Threading.Tasks;
 using CommonInfrastructure;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Serilog;
 
 namespace RabbitMqInfrastructure
 {
     public class RabbitService : IRabbitService//, IDisposable
     {
+        private const string SystemEventIdHeaderName = "SystemEventId";
+
         /// <summary> Information about current node </summary>
         private readonly INodeInfo _nodeInfo;
 
@@ -18,15 +21,18 @@ namespace RabbitMqInfrastructure
         private readonly string _rabbitHost;
 
         private readonly IDirectRequestProcessor _requestProcessor;
+        private readonly ILogger _logger;
 
 
         public RabbitService(INodeInfo nodeInfo,
             string rabbitHost, 
-            IDirectRequestProcessor requestProcessor)
+            IDirectRequestProcessor requestProcessor,
+            ILogger logger)
         {
             this._nodeInfo = nodeInfo;
             this._rabbitHost = rabbitHost;
             this._requestProcessor = requestProcessor;
+            this._logger = logger;
         }
 
 
@@ -120,8 +126,16 @@ namespace RabbitMqInfrastructure
         {
             var requestMessage = Encoding.UTF8.GetString(e.Body.ToArray());
             var messageHeaders = this.ConvertHeadersToString(e.BasicProperties.Headers);
+            
+            messageHeaders.TryGetValue(SystemEventIdHeaderName, out var eventId);
+            this._logger.InformationWithEventContext(eventId, "ProcessDirectRequest {rawMessage} {@headers}", requestMessage, messageHeaders);
+
+
             var actionName = messageHeaders["ActionName"];
             var responseMessage = await this._requestProcessor.ProcessDirectUntypedMessage(this, actionName, messageHeaders, requestMessage);
+
+            this._logger.InformationWithEventContext(eventId, "Response ProcessDirectRequest {rawMessage}", responseMessage);
+
             var msgBody = Encoding.UTF8.GetBytes(responseMessage);
             this._channel.BasicPublish("", e.BasicProperties.CorrelationId, body: msgBody);
         }
@@ -130,7 +144,8 @@ namespace RabbitMqInfrastructure
         /// <param name="serviceType">Service type</param>
         /// <param name="actionName">Method name</param>
         /// <param name="message">Message</param>
-        public Task<string> DirectRequest(EnumInfrastructureServicesType serviceType, string actionName, string message)
+        /// <param name="eventId">Unique event id</param>
+        public Task<string> DirectRequest(EnumInfrastructureServicesType serviceType, string actionName, string message, string? eventId = null)
         {
             var responseQueueName = $"{RequestPrefixes.Response}.{this._nodeInfo.NodeName}.{Guid.NewGuid()}";
 
@@ -141,8 +156,11 @@ namespace RabbitMqInfrastructure
                 { "ActionName",  actionName },
                 { "ResponseQueue",  responseQueueName }
             };
+            if (eventId != null)
+                headers.Add(SystemEventIdHeaderName, eventId);
 
-            var responseTask = this.ResponseTaskSource(responseQueueName);
+            this._logger.InformationWithEventContext(eventId, "DirectRequest {rawMessage} {@headers}", message, headers);
+            var responseTask = this.ResponseTaskSource(responseQueueName, eventId);
 
             this.DirectRequest(message, responseQueueName, headers);
 
@@ -150,7 +168,7 @@ namespace RabbitMqInfrastructure
         }
 
         /// <summary> Generate "Task" for waiting response </summary>
-        private Task<string> ResponseTaskSource(string responseQueueName)
+        private Task<string> ResponseTaskSource(string responseQueueName, string eventId = null)
         {
             var channel = this.Channel();
 
@@ -165,6 +183,7 @@ namespace RabbitMqInfrastructure
             responseConsumer.Received += (s, e) =>
             {
                 var responseMessage = Encoding.UTF8.GetString(e.Body.ToArray());
+                this._logger.InformationWithEventContext(eventId, "Response task {response}", responseMessage);
                 channel.QueueDelete(responseQueueName);
                 tcsResponse.SetResult(responseMessage);
                 return Task.CompletedTask;
@@ -201,7 +220,8 @@ namespace RabbitMqInfrastructure
         /// <summary> Publish information from node to CentralHub </summary>
         /// <param name="actionName">Method name</param>
         /// <param name="message">Information</param>
-        public Task PublishInformation(string actionName, string message)
+        /// <param name="eventId">Unique event id</param>
+        public Task PublishInformation(string actionName, string message, string? eventId = null)
         {
             var channel = this.Channel();
 
@@ -211,6 +231,11 @@ namespace RabbitMqInfrastructure
                 { "Publisher", this._nodeInfo.ServicesType.ToString() },
                 { "ActionName", actionName }
             };
+            if (eventId != null)
+                publishHeaders.Add(SystemEventIdHeaderName, eventId);
+
+            this._logger.InformationWithEventContext(eventId, "PublishInformation {rawMessage} {@headers}", message, publishHeaders);
+
 
             var basicProperties = channel.CreateBasicProperties();
             basicProperties.Headers = publishHeaders;
@@ -258,6 +283,8 @@ namespace RabbitMqInfrastructure
             {
                 var publishedInformation = Encoding.UTF8.GetString(e.Body.ToArray());
                 var dicHeaders = this.ConvertHeadersToString(e.BasicProperties.Headers);
+                dicHeaders.TryGetValue(SystemEventIdHeaderName, out var eventId);
+                this._logger.InformationWithEventContext(eventId, "Process Subscribe message {message} {@headers}", publishedInformation, dicHeaders);
                 await processFunc(publishedInformation, dicHeaders);
             };
 

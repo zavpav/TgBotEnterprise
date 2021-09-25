@@ -29,7 +29,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MainBot", "MainBot", "{EE8C
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TelegramService", "TelegramService\TelegramService.csproj", "{74D40EDC-DCE0-4134-AC40-FA8FC4ECBB7F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMessageCommunication", "RabbitMessageCommunication\RabbitMessageCommunication.csproj", "{E4083F15-503F-4138-A36C-EC94AC7CDCD9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RabbitMessageCommunication", "RabbitMessageCommunication\RabbitMessageCommunication.csproj", "{E4083F15-503F-4138-A36C-EC94AC7CDCD9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

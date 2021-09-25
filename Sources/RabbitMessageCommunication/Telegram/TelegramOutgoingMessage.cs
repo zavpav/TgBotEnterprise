@@ -2,7 +2,7 @@
 {
     public class TelegramOutgoingMessage : IRabbitMessage
     {
-        public string IncomeId { get; set; }
+        public string SystemEventId { get; set; }
 
         public bool IsEdit { get; set; }
 

@@ -18,10 +18,11 @@ namespace MainBotService.MainBotParts
             {
                 new TelegramOutgoingMessage
                 {
+                    SystemEventId = incomeMessage.SystemEventId,
                     Message = incomeMessage.BotUserId == GlobalConstants.UndefinedBotUserId 
                         ? "Who are you? " + incomeMessage.MessageText 
                         : "Response " + incomeMessage.MessageText, 
-                    ChatId = incomeMessage.ChatId
+                    ChatId = incomeMessage.ChatId,
                 }
             });
         }

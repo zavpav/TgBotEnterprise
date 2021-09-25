@@ -4,6 +4,6 @@
     public interface IRabbitMessage
     {
         /// <summary> Message Income Id - Unique id in all services </summary>
-        string IncomeId { get; }
+        string SystemEventId { get; }
     }
 }

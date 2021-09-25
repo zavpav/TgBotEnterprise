@@ -16,12 +16,14 @@ namespace RabbitMqInfrastructure
         /// <param name="serviceType">Service type</param>
         /// <param name="actionName">Method name</param>
         /// <param name="message">Message</param>
-        Task<string> DirectRequest(EnumInfrastructureServicesType serviceType, string actionName, string message);
+        /// <param name="eventId">Unique event id</param>
+        Task<string> DirectRequest(EnumInfrastructureServicesType serviceType, string actionName, string message, string? eventId = null);
 
         /// <summary> Publish information from node to CentralHub </summary>
         /// <param name="actionName">Method name</param>
         /// <param name="message">Information</param>
-        Task PublishInformation(string actionName, string message);
+        /// <param name="eventId">Unique event id</param>
+        Task PublishInformation(string actionName, string message, string? eventId = null);
 
         /// <summary> Subscribe to central information </summary>
         /// <param name="serviceType">Service type</param>

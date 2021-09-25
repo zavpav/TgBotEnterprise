@@ -49,13 +49,25 @@ namespace MainBotService
 
         private async Task ProcessIncomeTelegramMessage(TelegramIncomeMessage incomeMessage, IDictionary<string, string> rabbitMessageHeaders)
         {
-            if (incomeMessage.IsEdited)
-                return;
 
+            if (incomeMessage.IsEdited)
+            {
+                this._logger.Information(incomeMessage, "Message edited. Now ignoring. {@incomeMessage} ", incomeMessage);
+                return;
+            }
+
+            this._logger.Information(incomeMessage, "Processing message. {@incomeMessage} ", incomeMessage);
             var responseMessages = await this._telegramProcessor.ProcessIncomeMessage(incomeMessage).ConfigureAwait(false);
+
+            if (responseMessages.Count == 0)
+            {
+                this._logger.Information(incomeMessage, "Nothing to send");
+                return;
+            }
 
             foreach (var outgoingMessage in responseMessages)
             {
+                this._logger.Information(outgoingMessage, "Send message through telegram. {@outgoingMessage}", outgoingMessage);
                 await this._rabbitService.PublishInformation(
                     RabbitMessages.TelegramOutgoingMessage,
                     outgoingMessage);

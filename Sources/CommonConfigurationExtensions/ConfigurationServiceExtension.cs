@@ -28,7 +28,7 @@ namespace CommonInfrastructure
             var nodeInfo = new NodeInfo(currentNode, servicesType);
             services.AddSingleton<INodeInfo>(nodeInfo);
 
-            services.AddSingleton<IGlobalIncomeIdGenerator, GlobalIncomeIdGenerator>();
+            services.AddSingleton<IGlobalEventIdGenerator, GlobalEventIdGenerator>();
 
             var seqLogger = Environment.GetEnvironmentVariable("LOGGER_HOST");
             if (seqLogger != null)
@@ -54,7 +54,8 @@ namespace CommonInfrastructure
             {
                 var rabbitService = new RabbitService(nodeInfo, 
                     rabbitHost, 
-                    f.GetRequiredService<TDirectRequestProcessor>());
+                    f.GetRequiredService<TDirectRequestProcessor>(),
+                    f.GetRequiredService<ILogger>());
                 return rabbitService;
             });
         }

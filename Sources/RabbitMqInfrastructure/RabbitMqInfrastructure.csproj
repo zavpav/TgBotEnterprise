@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\InfrastructureServices\CommonInfrastructure.csproj" />
+    <ProjectReference Include="..\RabbitMessageCommunication\RabbitMessageCommunication.csproj" />
   </ItemGroup>
 
 </Project>

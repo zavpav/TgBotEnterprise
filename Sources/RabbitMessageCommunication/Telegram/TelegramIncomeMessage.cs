@@ -3,8 +3,8 @@
     /// <summary> Income telegram message </summary>
     public class TelegramIncomeMessage : IRabbitMessage
     {
-        /// <summary> Message Income Id - Unique id in all services </summary>
-        public string IncomeId { get; set; }
+        /// <summary> Event Id - Unique id in all services </summary>
+        public string SystemEventId { get; set; }
 
         /// <summary> Internal Id from telegram </summary>
         public int UpdateId { get; set; }
