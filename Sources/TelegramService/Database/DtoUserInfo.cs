@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 using Telegram.Bot.Requests;
 
 namespace TelegramService.Database
@@ -25,5 +26,27 @@ namespace TelegramService.Database
 
         /// <summary> User Id in MainBot </summary>
         public string? BotUserId { get; set; }
+
+        protected bool Equals(DtoUserInfo other)
+        {
+            return TelegramUserId == other.TelegramUserId 
+                   && IsActive == other.IsActive 
+                   && DefaultChatId == other.DefaultChatId 
+                   && WhoIsThis == other.WhoIsThis 
+                   && BotUserId == other.BotUserId;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != this.GetType()) return false;
+            return Equals((DtoUserInfo) obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(TelegramUserId, IsActive, DefaultChatId, WhoIsThis, BotUserId);
+        }
     }
 }

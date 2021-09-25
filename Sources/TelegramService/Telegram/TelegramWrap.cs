@@ -27,21 +27,21 @@ namespace TelegramService.Telegram
         private readonly TgServiceDbContext _dbContext;
         private readonly ITelegramBotClient _telegramBot;
         private readonly IRabbitService _rabbitService;
-        private readonly IGlobalIncomeIdGenerator _globalIncomeIdGenerator;
+        private readonly IGlobalEventIdGenerator _globalEventIdGenerator;
 
         private int _tgMessageOffset;
 
         public TelegramWrap(ILogger logger,
             ITelegramBotClient telegramBot, 
             IRabbitService rabbitService,
-            IGlobalIncomeIdGenerator globalIncomeIdGenerator,
+            IGlobalEventIdGenerator globalEventIdGenerator,
             TgServiceDbContext dbContext)
         {
             this._logger = logger;
             this._dbContext = dbContext;
             this._telegramBot = telegramBot;
             this._rabbitService = rabbitService;
-            this._globalIncomeIdGenerator = globalIncomeIdGenerator;
+            this._globalEventIdGenerator = globalEventIdGenerator;
         }
 
         public async Task Pull()
@@ -52,20 +52,22 @@ namespace TelegramService.Telegram
             {
                 foreach (var msg in messages)
                 {
-                    var incomeId = this._globalIncomeIdGenerator.GetNextIncomeId();
+                    var incomeId = this._globalEventIdGenerator.GetNextIncomeId();
                     var tgMsg = msg.Message ?? msg.EditedMessage;
                     if (tgMsg != null)
                     {
+                        var cacheInfo = await this.TryUpdateTelegramUserInformation(tgMsg);
+
                         var messageData = new TelegramIncomeMessage
                         {
                             UpdateId = msg.Id,
-                            IncomeId = incomeId,
+                            SystemEventId = incomeId,
                             ChatId = tgMsg.Chat.Id,
                             IsDirectMessage = tgMsg.Chat.Type == ChatType.Private,
                             MessageText = tgMsg.Text,
                             MessageId = tgMsg.MessageId,
                             TelegramUserId = tgMsg.From.Id,
-                            BotUserId = await this.DefineBotUserId(tgMsg.From),
+                            BotUserId = cacheInfo.BotUserId,
                         };
 
                         if (msg.EditedMessage != null)
@@ -91,27 +93,66 @@ namespace TelegramService.Telegram
 
         #region UserCache
 
-        private ConcurrentBag<UserCache> _usersCache = new ConcurrentBag<UserCache>();
+        private ConcurrentDictionary<long, UserCache> _usersCache = new ConcurrentDictionary<long, UserCache>();
 
-        private async Task<string> DefineBotUserId(User telegramUser)
+
+        /// <summary> Try to update telegram information. Add information if it doesn't exist. </summary>
+        private async ValueTask<UserCache> TryUpdateTelegramUserInformation(Message tgMsg)
         {
-            var usr = this._usersCache.FirstOrDefault(x => x.TelegramUserId == telegramUser.Id);
-
-            if (usr.Equals(default))
+            var currUsrInfo = this.CreateDtoUserInfoFromTgMessage(tgMsg);
+            if (!this._usersCache.TryGetValue(tgMsg.From.Id, out var usr))
             {
-                var usrInfo = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.TelegramUserId == telegramUser.Id);
-                if (usrInfo?.BotUserId != null)
+                usr = await UpdateDbUser(currUsrInfo);
+            }
+            else
+            {
+                if (currUsrInfo.DefaultChatId != null && usr.DefaultChatId != currUsrInfo.DefaultChatId)
                 {
-                    // Exists activated user
-                    if (usrInfo.IsActive)
-                        this._usersCache.Add(new UserCache(usrInfo.TelegramUserId, usrInfo.DefaultChatId, usrInfo.BotUserId));
+                    usr = await UpdateDbUser(currUsrInfo);
+                }
+            }
+            if (!this._usersCache.TryGetValue(tgMsg.From.Id, out usr))
+                throw new NotSupportedException("UserCache doesn't have info");
 
-                    return usrInfo.BotUserId;
+            return usr;
+        }
+
+        /// <summary> Update information </summary>
+        private async ValueTask<UserCache> UpdateDbUser(DtoUserInfo currUsrInfo)
+        {
+            var usrInfo = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.TelegramUserId == currUsrInfo.TelegramUserId);
+            if (usrInfo == null)
+            {
+                // Add new telegram user
+                await this._dbContext.UsersInfo.AddAsync(currUsrInfo);
+                await this._dbContext.SaveChangesAsync();
+            }
+            else
+            {
+                if (!usrInfo.Equals(currUsrInfo))
+                {
+                    // Update User Info
+                    currUsrInfo.Id = usrInfo.Id;
+                    await this._dbContext.UsersInfo.AddAsync(currUsrInfo);
+                    await this._dbContext.SaveChangesAsync();
                 }
             }
 
-            Console.WriteLine($"Undefined user:  UserName: {telegramUser.Username} LastName: {telegramUser.LastName} FirstName: {telegramUser.FirstName}");
-            return GlobalConstants.UndefinedBotUserId;
+            var userCache = new UserCache(currUsrInfo.TelegramUserId, currUsrInfo.DefaultChatId, currUsrInfo.BotUserId);
+            return this._usersCache.AddOrUpdate(currUsrInfo.TelegramUserId, userCache, (id, exst) => userCache);
+        }
+
+        /// <summary> Create tg user information from telegram message  </summary>
+        private DtoUserInfo CreateDtoUserInfoFromTgMessage(Message tgMsg)
+        {
+            return new DtoUserInfo
+            {
+                DefaultChatId = tgMsg.Chat.Type != ChatType.Private ? null : (long?)tgMsg.Chat.Id,
+                BotUserId = "TG_TMP:" + tgMsg.From.Id,
+                IsActive = false,
+                TelegramUserId = tgMsg.From.Id,
+                WhoIsThis = $"Undefined user:  UserName: {tgMsg.From.Username} LastName: {tgMsg.From.LastName} FirstName: {tgMsg.From.FirstName}"
+            };
         }
 
         private struct UserCache
@@ -152,6 +193,7 @@ namespace TelegramService.Telegram
 
         public async Task SendMessage(TelegramOutgoingMessage messageData)
         {
+            this._logger.Information(messageData, "Sending message to user {@messageData}", messageData);
             var msg = await this._telegramBot.SendTextMessageAsync(messageData.ChatId, messageData.Message, replyToMessageId: messageData.MessageId ?? 0);
             //msg.MessageId
         }
