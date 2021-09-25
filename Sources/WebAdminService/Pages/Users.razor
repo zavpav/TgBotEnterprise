@@ -1,0 +1,62 @@
+﻿@page "/Users"
+@using WebAdminService.Data
+@inject CurrentUsersService CurrentUsersService
+
+<h1>Users</h1>
+
+@if (this._users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (this._users.Length == 0)
+{
+    <h3><em>No data found...</em></h3>
+}
+else
+{
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>User id in bot-system</th>
+                <th>User name in bot-system</th>
+                <th>Jenkins name</th>
+                <th>Redmine full name</th>
+                <th>Is user activated?</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var usr in this._users)
+            {
+                <tr>
+                    <td>@usr.BotUserId</td>
+                    <td>
+                        @if (usr.BotUserName != null)
+                        {
+                            @usr.BotUserName
+                        }
+                        else
+                        {
+                            @usr.SystemUserInfo
+                        } 
+                    </td>
+                    <td>@usr.JenkinsUserName</td>
+                    <td>@usr.RedmineUserName</td>
+                    <td>@usr.IsActivate</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+}
+
+
+@code {
+    private CurrentUsersService.UserDataPresentor[]? _users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        this._users = await this.CurrentUsersService.GetUsersAsync();
+    }
+
+}

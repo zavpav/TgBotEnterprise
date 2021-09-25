@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 using CommonInfrastructure;
 using RabbitMqInfrastructure;
@@ -11,10 +10,12 @@ namespace WebAdminService.Data
     public class MainPageService
     {
         private readonly IRabbitService _rabbitService;
+        private readonly IGlobalEventIdGenerator _eventIdGenerator;
 
-        public MainPageService(IRabbitService rabbitService)
+        public MainPageService(IRabbitService rabbitService, IGlobalEventIdGenerator eventIdGenerator)
         {
             this._rabbitService = rabbitService;
+            this._eventIdGenerator = eventIdGenerator;
         }
 
         public async Task<ActualServicesInfo[]> GetActualServices()
@@ -26,13 +27,11 @@ namespace WebAdminService.Data
             {
                 tasks.Add(Tuple.Create(servicesType, this._rabbitService.DirectRequest(servicesType, "ping", "ping")));
             }
-
-
+            
             var result = new List<ActualServicesInfo>();
             foreach (var anyTsk in tasks)
             {
                 var serviceType = anyTsk.Item1;
-
                 try
                 {
                     var res = await anyTsk.Item2;

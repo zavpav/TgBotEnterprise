@@ -1,15 +1,9 @@
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using CommonInfrastructure;
-using Microsoft.AspNetCore.Mvc.Formatters;
 using RabbitMqInfrastructure;
 using WebAdminService.Data;
 
@@ -34,6 +28,11 @@ namespace WebAdminService
 
             services.AddRazorPages();
             services.AddServerSideBlazor();
+
+            services.AddSingleton<CurrentUsersService>();
+
+
+            
             services.AddSingleton<WeatherForecastService>();
             services.AddSingleton<MainPageService>();
             services.AddSingleton<BugTrackerService>();
