@@ -6,15 +6,20 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using CommonInfrastructure;
-using Microsoft.Extensions.Configuration.Json;
-using RedmineService.RabbitCommunication;
+using Serilog;
 
 namespace RedmineService.Redmine
 {
     /// <summary> Communications to Redmine </summary>
     public class RedmineCommunication
     {
+        private readonly ILogger _logger;
         private HttpExtension.AuthInformation? _credential;
+
+        public RedmineCommunication(ILogger logger)
+        {
+            this._logger = logger;
+        }
 
         private Task AddCredential(WebRequest request)
         {
@@ -31,7 +36,7 @@ namespace RedmineService.Redmine
             try
             {
                 var jsonString = await (new System.IO.StreamReader("Secretic/Password.json", Encoding.UTF8).ReadToEndAsync());
-                var authInfo = JsonSerializer.Deserialize<HttpExtension.AuthInformation>(jsonString);
+                var authInfo = JsonSerializer2.DeserializeRequired<HttpExtension.AuthInformation>(jsonString, this._logger);
                 this._credential = authInfo;
             }
             catch (System.IO.FileNotFoundException)
@@ -46,7 +51,7 @@ namespace RedmineService.Redmine
             try
             {
                 var jsonString = await (new System.IO.StreamReader("Secretic/Configuration.json", Encoding.UTF8).ReadToEndAsync());
-                var configuraton = JsonSerializer.Deserialize<RedmineConfiguraton>(jsonString);
+                var configuraton = JsonSerializer2.DeserializeRequired<RedmineConfiguraton>(jsonString, this._logger);
                 redmineHost = configuraton?.Host;
             }
             catch (System.IO.FileNotFoundException)

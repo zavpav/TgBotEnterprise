@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using CommonInfrastructure;
 using RabbitMessageCommunication;
+using Serilog;
 
 namespace RabbitMqInfrastructure
 {
@@ -18,15 +19,18 @@ namespace RabbitMqInfrastructure
         /// <param name="serviceType">Publisher service type</param>
         /// <param name="actionName">Action</param>
         /// <param name="messageProcessor">Message processor</param>
+        /// <param name="logger">Logger</param>
         public static void Subscribe<T>(this IRabbitService rabbitService, 
             EnumInfrastructureServicesType serviceType, 
             string actionName,
-            ProcessMessage<T> messageProcessor)
+            ProcessMessage<T> messageProcessor,
+            ILogger logger)
+            where T : IRabbitMessage
         {
             rabbitService.Subscribe(serviceType, actionName, 
                 (message, rabbitHeaders) =>
                 {
-                    var msgData = JsonSerializer.Deserialize<T>(message) ?? throw new NotSupportedException("No data for deserialization");
+                    var msgData = JsonSerializer2.DeserializeRequired<T>(message, logger);
                     return messageProcessor(msgData, rabbitHeaders);
                 });
         }

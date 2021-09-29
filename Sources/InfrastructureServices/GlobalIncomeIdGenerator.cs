@@ -11,7 +11,7 @@ namespace CommonInfrastructure
         /// Need for through looking income information in system.
         /// Used for income telegram meesages, redmine/jenkins events and so on
         /// </remarks>
-        string GetNextIncomeId();
+        string GetNextEventId();
     }
 
 
@@ -27,7 +27,7 @@ namespace CommonInfrastructure
             this._counter = 0;
         }
 
-        public string GetNextIncomeId()
+        public string GetNextEventId()
         {
             this._counter++;
 

@@ -168,7 +168,7 @@ namespace RabbitMqInfrastructure
         }
 
         /// <summary> Generate "Task" for waiting response </summary>
-        private Task<string> ResponseTaskSource(string responseQueueName, string eventId = null)
+        private Task<string> ResponseTaskSource(string responseQueueName, string? eventId = null)
         {
             var channel = this.Channel();
 

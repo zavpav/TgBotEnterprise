@@ -5,13 +5,20 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using CommonInfrastructure;
+using Serilog;
 
 namespace JenkinsService.Jenkins
 {
     public class JenkinsCommunication
     {
+        private readonly ILogger _logger;
 
         private HttpExtension.AuthInformation? _credential;
+
+        public JenkinsCommunication(ILogger logger)
+        {
+            this._logger = logger;
+        }
 
         private Task AddCredential(WebRequest request)
         {
@@ -28,7 +35,7 @@ namespace JenkinsService.Jenkins
             try
             {
                 var jsonString = await(new System.IO.StreamReader("Secretic/Password.json", Encoding.UTF8).ReadToEndAsync());
-                var authInfo = JsonSerializer.Deserialize<HttpExtension.AuthInformation>(jsonString);
+                var authInfo = JsonSerializer2.DeserializeRequired<HttpExtension.AuthInformation>(jsonString, this._logger);
                 this._credential = authInfo;
             }
             catch (System.IO.FileNotFoundException)
@@ -43,7 +50,7 @@ namespace JenkinsService.Jenkins
             try
             {
                 var jsonString = await (new System.IO.StreamReader("Secretic/Configuration.json", Encoding.UTF8).ReadToEndAsync());
-                var configuraton = JsonSerializer.Deserialize<JenkinsConfiguraton>(jsonString);
+                var configuraton = JsonSerializer2.DeserializeRequired<JenkinsConfiguraton>(jsonString, this._logger);
                 jenkinsHost = configuraton?.Host;
             }
             catch (System.IO.FileNotFoundException)

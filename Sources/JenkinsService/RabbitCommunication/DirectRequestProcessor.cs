@@ -4,18 +4,21 @@ using System.Threading.Tasks;
 using CommonInfrastructure;
 using JenkinsService.Jenkins;
 using RabbitMqInfrastructure;
+using Serilog;
 
 namespace JenkinsService.RabbitCommunication
 {
     public class DirectRequestProcessor : IDirectRequestProcessor
     {
         private readonly INodeInfo _nodeInfo;
-        private JenkinsCommunication _jenkinsCommunication;
+        private readonly ILogger _logger;
+        private readonly JenkinsCommunication _jenkinsCommunication;
 
-        public DirectRequestProcessor(INodeInfo nodeInfo)
+        public DirectRequestProcessor(INodeInfo nodeInfo, ILogger logger)
         {
+            this._logger = logger;
             this._nodeInfo = nodeInfo;
-            this._jenkinsCommunication = new JenkinsCommunication();
+            this._jenkinsCommunication = new JenkinsCommunication(logger);
         }
 
         public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit,

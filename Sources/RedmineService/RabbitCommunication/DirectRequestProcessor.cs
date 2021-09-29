@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using CommonInfrastructure;
 using RabbitMqInfrastructure;
 using RedmineService.Redmine;
+using Serilog;
 
 namespace RedmineService.RabbitCommunication
 {
@@ -11,12 +12,14 @@ namespace RedmineService.RabbitCommunication
     public class DirectRequestProcessor : IDirectRequestProcessor
     {
         private readonly INodeInfo _nodeInfo;
-        private RedmineCommunication _redmineService;
+        private readonly ILogger _logger;
+        private readonly RedmineCommunication _redmineService;
 
-        public DirectRequestProcessor(INodeInfo nodeInfo)
+        public DirectRequestProcessor(INodeInfo nodeInfo, ILogger logger)
         {
             this._nodeInfo = nodeInfo;
-            this._redmineService = new RedmineCommunication();
+            this._logger = logger;
+            this._redmineService = new RedmineCommunication(logger);
         }
 
         public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit,
