@@ -1,0 +1,32 @@
+@startuml "Components"
+title Describe all components in Telegram Bot like Enterprise Way
+
+cloud     "RabbitMQ" as rabbit
+component "Main Service\nMain Bot"  as mainbot #37DC74
+database  Databases <<Postgre\nfor each service>> as db
+cloud     "Logger server" <<Seq>> as logger 
+
+component "Git servise" as git #lightgray
+
+[Telegram serice]  -down- rabbit
+[WebAdmin]         -down- rabbit
+mainbot            -left- rabbit
+[Redmine serice]   -up-   rabbit
+[Jenkins serice]   -up-   rabbit
+git                -up-   rabbit
+
+note top of [Telegram serice] : Service for processing user\nrequests throught telegram.
+note top of [WebAdmin]        : Service for processing admin requests.\nChange BotIds, Redmine/Jenkins names and so on.
+
+note bottom of [Redmine serice]  : Pulling changes in Redmine server.\nGetting data for requests of others services.
+note bottom of [Jenkins serice]  : Pulling changes in Jenkins server.\nGetting data for requests of others services.
+note bottom of git : Get some information\nfrom git system
+
+
+note left  of rabbit  : Queue for\nall communications.
+note right of mainbot #63DC90 : Main logic\nof services. 
+
+note top of db : Dtabases for each services.
+note top of logger : Logger system.\nAny income event has unique EventId.\nSeq allow filter all log-messages by eventId.
+
+@enduml
