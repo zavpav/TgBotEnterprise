@@ -28,12 +28,18 @@ Jenkins service - service for communication to Jenkins. Pulling changed jobs. Ma
 Git service - Getting information from git.
 
 Other nodes:
+
 RabbitMQ - All communications between services are carried out through queues. I got RabbitMQ. Because it is a bit simpler than Kafka.
 
 Postgre - Database for storing data of services. Each service has its own database.
 
 As a logger server I choose Seq. It's a simple but very useful server. I put logs into Seq via Serilog.
 
+
+
+
+
+<<Underconstraction>>
 
 ![alternative text](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/ProcessingTelegramMessage.puml)
 
