@@ -1,0 +1,28 @@
+@startuml Usecase
+title Actors (income events into TgBotSystem)
+
+rectangle "Human activities" { 
+    actor "Telegram User" as tg_user
+    usecase (Receive information about\nthe information of inerest) as  mainCase #37DC74
+    tg_user --> mainCase
+    tg_user --> (Current version state)
+    tg_user --> (Change user settings)
+
+    actor "Admin (WebAdmin)" as admin
+    admin   -up-> (Change user settings)
+    admin   --> (Activate user)
+    admin   --> (Statistic)
+}
+
+' rectangle "Matrix activities" {
+'     control "Redmine service" as redmine
+'     control "Jenkins service" as jenkins
+'     control "Git service"     as git
+
+'     redmine --> (Send Task changed)
+'     redmine --> (Version description)
+'     jenkins --> (Dend Build job status changed)
+'     git --> (Receive information from git)
+' }
+
+@enduml
