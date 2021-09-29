@@ -5,12 +5,16 @@ This project is written for getting some experience in the “enterprise way” 
 
 The bot allows the user to get information about the state of “current version” from BugTracker (Redmine), CI system (Jenkins). 
 Also add “webadmin” pages.
+
 ![alternative text](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/UseCase.puml)
 
 
 I want to do a service for each communication system.
 Therefore TgBot is needed the followed services:
+
 ![alternative text](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/Components.puml)
+
+
 MainBot - Main service.  Contains all logic about bot-working.
 Telegram service - Service for communication with telegram servers. Contains logic about boundies of telegram. Contains information about ralation of Telegram user and Bot User.
 WebAdmin - web site. Contains logic of administrating TgBot.
