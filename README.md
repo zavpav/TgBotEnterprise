@@ -1,7 +1,5 @@
 # TgBotEnterprise
 Pet project. Telegram bot "like enterprise way" 
 
-::uml:: format="png" classes="uml myDiagram" alt="My super diagram placeholder" title="My super diagram" width="300px" height="300px"
-  Goofy ->  MickeyMouse: calls
-  Goofy <-- MickeyMouse: responds
-::end-uml::
+
+![alternative text](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/ProcessingTelegramMessage.puml)
