@@ -39,7 +39,7 @@ As a logger server I choose Seq. It's a simple but very useful server. I put log
 
 
 
-<<Underconstraction>>
+[Underconstraction]
 
 ![alternative text](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/ProcessingTelegramMessage.puml)
 
