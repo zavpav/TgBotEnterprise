@@ -1,0 +1,50 @@
+@startuml Processing telegram message from "new user"
+title Processing telegram message from "new user"
+actor "User" as usr
+box 
+    participant "Telegram\nservice" as tg
+    database "Telegram\nservice db" as tg_db
+end box
+queue "Rabbit" as rabbit #LightBlue
+box
+    participant "MainBot" as mb
+    database "MainBot db" as mb_db
+end box
+
+usr -> tg ++ : A message
+tg -> tg_db : Find user by "telegram user id"
+group Telegram user doesn't exist
+tg -> tg ++ : Generate new bot id
+tg -> tg_db : Save new user in localdatabse
+tg -[#green]> rabbit -- : <<rabbit>> Register new user message
+end
+tg -[#green]> rabbit --: <<rabbit>> A message
+
+group #pink  We don't know what message we receive first 
+== Consuming messages ==
+rabbit --[#green]> mb ++ : <<rabbit>> A message
+mb -> mb ++: Find user by BotId
+mb -> mb_db --: Save new user in localdatabase\nif user doesn't exist
+mb -> mb ++: Processing the message
+deactivate mb
+deactivate mb
+
+== Consuming messages ==
+rabbit --[#green]> mb ++ : <<rabbit>> Register new user message
+deactivate tg
+mb -> mb ++: Find user by BotId
+mb -> mb_db : Save new user in localdatabase\nif user doesn't exist
+deactivate mb
+mb -[#green]> rabbit --: <<rabbit>> Send\n"The Update user information message"\n for all consumers
+end
+
+== Consuming messages ==
+rabbit --[#green]> tg ++ : <<rabbit>> The Update user information message
+tg -> tg : Find user by BotId
+group User exists?
+tg -> tg_db : Update user information
+else User doesn't exist
+tg -> tg_db --: Save new user information
+end
+
+@enduml
