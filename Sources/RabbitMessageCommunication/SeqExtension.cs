@@ -12,7 +12,7 @@ namespace CommonInfrastructure
         public static void InformationWithEventContext(this ILogger logger,
             string? eventIdContext,
             string templateMessage,
-            params object[] parts
+            params object?[] parts
         )
         {
             if (string.IsNullOrEmpty(eventIdContext))
@@ -27,7 +27,7 @@ namespace CommonInfrastructure
         public static void Information(this ILogger logger,
             IRabbitMessage processingMessage, 
             string templateMessage,
-            params object[] parts
+            params object?[] parts
         )
         {
             logger.ForContext(IncomeMessageIdEnrichName, processingMessage.SystemEventId) 
@@ -38,7 +38,7 @@ namespace CommonInfrastructure
             IRabbitMessage processingMessage,
             Exception exception,
             string templateMessage,
-            params object[] parts
+            params object?[] parts
         )
         {
             logger.ForContext(IncomeMessageIdEnrichName, processingMessage.SystemEventId)
@@ -48,7 +48,7 @@ namespace CommonInfrastructure
         public static void Warning(this ILogger logger,
             IRabbitMessage processingMessage,
             string templateMessage,
-            params object[] parts
+            params object?[] parts
         )
         {
             logger.ForContext(IncomeMessageIdEnrichName, processingMessage.SystemEventId)
@@ -58,7 +58,7 @@ namespace CommonInfrastructure
             IRabbitMessage processingMessage,
             Exception exception,
             string templateMessage,
-            params object[] parts
+            params object?[] parts
         )
         {
             logger.ForContext(IncomeMessageIdEnrichName, processingMessage.SystemEventId)
@@ -68,7 +68,7 @@ namespace CommonInfrastructure
         public static void Error(this ILogger logger,
             IRabbitMessage processingMessage,
             string templateMessage,
-            params object[] parts
+            params object?[] parts
         )
         {
             logger.ForContext(IncomeMessageIdEnrichName, processingMessage.SystemEventId)
@@ -78,7 +78,7 @@ namespace CommonInfrastructure
             IRabbitMessage processingMessage,
             Exception exception,
             string templateMessage,
-            params object[] parts
+            params object?[] parts
         )
         {
             logger.ForContext(IncomeMessageIdEnrichName, processingMessage.SystemEventId)
@@ -88,7 +88,7 @@ namespace CommonInfrastructure
         public static void Fatal(this ILogger logger,
             IRabbitMessage processingMessage,
             string templateMessage,
-            params object[] parts
+            params object?[] parts
         )
         {
             logger.ForContext(IncomeMessageIdEnrichName, processingMessage.SystemEventId)
@@ -98,7 +98,7 @@ namespace CommonInfrastructure
             IRabbitMessage processingMessage,
             Exception exception,
             string templateMessage,
-            params object[] parts
+            params object?[] parts
         )
         {
             logger.ForContext(IncomeMessageIdEnrichName, processingMessage.SystemEventId)
