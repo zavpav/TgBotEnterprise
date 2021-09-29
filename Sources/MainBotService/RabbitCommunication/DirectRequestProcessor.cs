@@ -2,7 +2,11 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
+using AutoMapper;
 using CommonInfrastructure;
+using MainBotService.Database;
+using Microsoft.EntityFrameworkCore;
+using RabbitMessageCommunication;
 using RabbitMessageCommunication.WebAdmin;
 using RabbitMqInfrastructure;
 using Serilog;
@@ -13,11 +17,15 @@ namespace MainBotService.RabbitCommunication
     {
         private readonly INodeInfo _nodeInfo;
         private readonly ILogger _logger;
+        private readonly IMapper _mapper;
+        private readonly BotServiceDbContext _dbContext;
 
-        public DirectRequestProcessor(INodeInfo nodeInfo, ILogger logger)
+        public DirectRequestProcessor(INodeInfo nodeInfo, ILogger logger, IMapper mapper, BotServiceDbContext dbContext)
         {
             this._nodeInfo = nodeInfo;
             this._logger = logger;
+            this._mapper = mapper;
+            this._dbContext = dbContext;
         }
 
         public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit, 
@@ -31,23 +39,16 @@ namespace MainBotService.RabbitCommunication
                 return "OK"; // Check only existing service
             }
 
-            if (actionName.ToUpper() == "GET-ALL-USERS")
+            if (actionName.ToUpper() == RabbitMessages.WebGetAllUsers.ToUpper())
             {
-                var requestAllMessage = JsonSerializer.Deserialize<RequestAllUsersMessage>(directMessage);
+                var requestAllMessage = JsonSerializer2.DeserializeRequired<RequestAllUsersMessage>(directMessage, this._logger);
                 this._logger.Information(requestAllMessage, "Processing {actionName} message {@message}", actionName, requestAllMessage);
 
-                var responseMessage = new ResponseAllUsersMessage(requestAllMessage.SystemEventId)
-                {
-                    AllUsersInfos = new [] {new ResponseAllUsersMessage.UserInfo
-                    {
-                        UserId = 1,
-                        BotUserId = "None",
-                        BotUserName = null,
-                        IsActivate = false,
-                        SystemUserInfo = "SomeInformation from telegramm"
-                    }
-                    }
-                };
+                var allUsers = await this._dbContext.UsersInfo.ToListAsync();
+                var allUsersPack = this._mapper.Map<ResponseAllUsersMessage.UserInfo[]>(allUsers.ToArray()) 
+                                   ?? new ResponseAllUsersMessage.UserInfo[0];
+
+                var responseMessage = new ResponseAllUsersMessage(requestAllMessage.SystemEventId) { AllUsersInfos = allUsersPack };
 
                 
                 this._logger.Information(responseMessage, "Response {@response}", responseMessage);

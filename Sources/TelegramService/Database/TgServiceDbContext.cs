@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Internal;
 
 namespace TelegramService.Database
 {
@@ -8,6 +9,8 @@ namespace TelegramService.Database
         {
         }
 
+#nullable disable
         public DbSet<DtoUserInfo> UsersInfo { get; set; }
+#nullable restore
     }
 }

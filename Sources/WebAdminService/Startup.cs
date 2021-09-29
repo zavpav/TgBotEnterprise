@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -26,12 +27,18 @@ namespace WebAdminService
             ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessorStub>(configuration, services, 
                 EnumInfrastructureServicesType.WebAdmin);
 
+            var mapperConfig = new MapperConfiguration(mc =>
+            {
+                mc.AddProfile(new MappingProfile());
+            });
+            var mapper = mapperConfig.CreateMapper();
+            services.AddSingleton<IMapper>(mapper);
+
+
             services.AddRazorPages();
             services.AddServerSideBlazor();
 
             services.AddSingleton<CurrentUsersService>();
-
-
             
             services.AddSingleton<WeatherForecastService>();
             services.AddSingleton<MainPageService>();

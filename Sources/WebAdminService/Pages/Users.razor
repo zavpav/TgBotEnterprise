@@ -30,19 +30,10 @@ else
             {
                 <tr>
                     <td>@usr.BotUserId</td>
-                    <td>
-                        @if (usr.BotUserName != null)
-                        {
-                            @usr.BotUserName
-                        }
-                        else
-                        {
-                            @usr.SystemUserInfo
-                        } 
-                    </td>
+                    <td>@usr.WhoIsThis</td>
                     <td>@usr.JenkinsUserName</td>
                     <td>@usr.RedmineUserName</td>
-                    <td>@usr.IsActivate</td>
+                    <td>@usr.IsActive</td>
                 </tr>
             }
         </tbody>

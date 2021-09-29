@@ -62,6 +62,10 @@ services:
       context: .
       dockerfile: MainBotService\Dockerfile
     environment:
+    - POSTGRE_HOST=tg-postgre
+    - POSTGRE_PORT=5432
+    - POSTGRE_USER=postgres
+    - POSTGRE_PASSWORD=123456
     - RABBIT_MQ=tg-rabbit-mq
     - LOGGER_HOST=tg-seq-logger
     volumes:
@@ -77,6 +81,11 @@ services:
     environment:
     - RABBIT_MQ=tg-rabbit-mq
     - LOGGER_HOST=tg-seq-logger
+    
+    - POSTGRE_HOST=tg-postgre
+    - POSTGRE_PORT=5432
+    - POSTGRE_USER=postgres
+    - POSTGRE_PASSWORD=123456
 
   telegramservice:
     image: ${DOCKER_REGISTRY-}telegramservice
@@ -91,6 +100,9 @@ services:
 
     - POSTGRE_HOST=tg-postgre
     - POSTGRE_PORT=5432
+    - POSTGRE_USER=postgres
+    - POSTGRE_PASSWORD=123456
+
     - TELEGRAM_KEY=undef
     volumes:
     - ../DockerVolumes/Telegram/Secretic:/app/Secretic

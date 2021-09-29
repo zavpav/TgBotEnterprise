@@ -3,10 +3,9 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.Text;
 using System.Text.Json;
+using AutoMapper;
 using CommonInfrastructure;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Telegram.Bot;
 using TelegramService.Database;
@@ -35,20 +34,14 @@ namespace TelegramService
                     ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
                         EnumInfrastructureServicesType.Messaging);
 
-                    services.AddDbContext<TgServiceDbContext>(optionsBuilder =>
+                    services.ConfigureDatabase<TgServiceDbContext>("telegram", configuration);
+
+                    var mapperConfig = new MapperConfiguration(mc =>
                     {
-                        var postgreHost = configuration.GetValue<string?>("POSTGRE_HOST")
-                                          ?? throw new NotSupportedException("Postgre host is not initialized");
-                        var postgrePort = configuration.GetValue<string?>("POSTGRE_PORT")
-                                          ?? throw new NotSupportedException("Postgre port is not initialized");
-
-                        Console.WriteLine($"PostgreConnection: {postgreHost}:{postgrePort}");
-                        optionsBuilder.UseNpgsql($"Host={postgreHost};Port={postgrePort};Database=telegram;Username=postgres;Password=123456")
-                            .LogTo(Console.WriteLine, LogLevel.Information)
-                            //.EnableSensitiveDataLogging()
-                            .EnableDetailedErrors();
+                        mc.AddProfile(new MappingProfile());
                     });
-
+                    var mapper = mapperConfig.CreateMapper();
+                    services.AddSingleton<IMapper>(mapper);
                     
                     var tgKey = configuration.GetValue<string?>("TELEGRAM_KEY");
 

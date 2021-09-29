@@ -1,5 +1,7 @@
 ﻿using System.Threading.Tasks;
+using AutoMapper;
 using CommonInfrastructure;
+using RabbitMessageCommunication;
 using RabbitMessageCommunication.WebAdmin;
 using RabbitMqInfrastructure;
 using Serilog;
@@ -10,27 +12,28 @@ namespace WebAdminService.Data
     {
         private readonly IRabbitService _rabbitService;
         private readonly ILogger _logger;
+        private readonly IMapper _mapper;
         private readonly IGlobalEventIdGenerator _eventIdGenerator;
 
         public CurrentUsersService(
             IRabbitService rabbitService, 
             ILogger logger,
+            IMapper mapper,
             IGlobalEventIdGenerator eventIdGenerator)
         {
             this._rabbitService = rabbitService;
             this._logger = logger;
+            _mapper = mapper;
             this._eventIdGenerator = eventIdGenerator;
         }
 
         public async Task<UserDataPresentor[]?> GetUsersAsync()
         {
-            var request = new RequestAllUsersMessage(this._eventIdGenerator.GetNextIncomeId());
+            var request = new RequestAllUsersMessage(this._eventIdGenerator.GetNextEventId());
             var response = await this._rabbitService.DirectRequestToMainBot<RequestAllUsersMessage, ResponseAllUsersMessage>(
-                    "get-all-users", request);
+                RabbitMessages.WebGetAllUsers, request);
 
-            var mapperConfig = new AutoMapper.MapperConfiguration(cfg => cfg.CreateMap<ResponseAllUsersMessage.UserInfo, UserDataPresentor>());
-            var mapper = mapperConfig.CreateMapper();
-            var users = mapper.Map<UserDataPresentor[]>(response.AllUsersInfos) ?? new UserDataPresentor[]{};
+            var users = this._mapper.Map<UserDataPresentor[]>(response.AllUsersInfos) ?? new UserDataPresentor[]{};
             return users;
         }
 
@@ -43,11 +46,8 @@ namespace WebAdminService.Data
             public string? BotUserId { get; set; }
 
             /// <summary> User name in bot-system </summary>
-            public string? BotUserName { get; set; }
+            public string? WhoIsThis { get; set; }
 
-            /// <summary> Autogenerate name in bot-system </summary>
-            public string? SystemUserInfo { get; set; }
-            
             /// <summary> Jenkins name </summary>
             public string? JenkinsUserName { get; set; }
             
@@ -55,7 +55,7 @@ namespace WebAdminService.Data
             public string? RedmineUserName { get; set; }
 
             /// <summary> Is user activated? </summary>
-            public bool IsActivate { get; set; }
+            public bool IsActive { get; set; }
         }
 
     }

@@ -52,16 +52,16 @@ namespace TelegramService.Telegram
             {
                 foreach (var msg in messages)
                 {
-                    var incomeId = this._globalEventIdGenerator.GetNextIncomeId();
+                    var eventId = this._globalEventIdGenerator.GetNextEventId();
                     var tgMsg = msg.Message ?? msg.EditedMessage;
                     if (tgMsg != null)
                     {
-                        var cacheInfo = await this.TryUpdateTelegramUserInformation(tgMsg);
+                        var cacheInfo = await this.TryUpdateTelegramUserInformation(tgMsg, eventId);
 
                         var messageData = new TelegramIncomeMessage
                         {
                             UpdateId = msg.Id,
-                            SystemEventId = incomeId,
+                            SystemEventId = eventId,
                             ChatId = tgMsg.Chat.Id,
                             IsDirectMessage = tgMsg.Chat.Type == ChatType.Private,
                             MessageText = tgMsg.Text,
@@ -97,18 +97,18 @@ namespace TelegramService.Telegram
 
 
         /// <summary> Try to update telegram information. Add information if it doesn't exist. </summary>
-        private async ValueTask<UserCache> TryUpdateTelegramUserInformation(Message tgMsg)
+        private async ValueTask<UserCache> TryUpdateTelegramUserInformation(Message tgMsg, string eventId)
         {
-            var currUsrInfo = this.CreateDtoUserInfoFromTgMessage(tgMsg);
+            var currUsrInfo = this.CreateDtoUserInfoFromTgMessage(tgMsg, eventId);
             if (!this._usersCache.TryGetValue(tgMsg.From.Id, out var usr))
             {
-                usr = await UpdateDbUser(currUsrInfo);
+                usr = await UpdateDbUser(currUsrInfo, eventId);
             }
             else
             {
                 if (currUsrInfo.DefaultChatId != null && usr.DefaultChatId != currUsrInfo.DefaultChatId)
                 {
-                    usr = await UpdateDbUser(currUsrInfo);
+                    usr = await UpdateDbUser(currUsrInfo, eventId);
                 }
             }
             if (!this._usersCache.TryGetValue(tgMsg.From.Id, out usr))
@@ -118,7 +118,7 @@ namespace TelegramService.Telegram
         }
 
         /// <summary> Update information </summary>
-        private async ValueTask<UserCache> UpdateDbUser(DtoUserInfo currUsrInfo)
+        private async ValueTask<UserCache> UpdateDbUser(DtoUserInfo currUsrInfo, string eventId)
         {
             var usrInfo = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.TelegramUserId == currUsrInfo.TelegramUserId);
             if (usrInfo == null)
@@ -126,6 +126,14 @@ namespace TelegramService.Telegram
                 // Add new telegram user
                 await this._dbContext.UsersInfo.AddAsync(currUsrInfo);
                 await this._dbContext.SaveChangesAsync();
+
+                await this._rabbitService.PublishInformation(RabbitMessages.TelegramPublishNewUserFromTelegram,
+                    new TelegramPublishNewUserFromTelegram
+                    {
+                        SystemEventId = eventId, 
+                        BotUserId = currUsrInfo.BotUserId,
+                        WhoIsThis = currUsrInfo.WhoIsThis
+                    });
             }
             else
             {
@@ -143,7 +151,7 @@ namespace TelegramService.Telegram
         }
 
         /// <summary> Create tg user information from telegram message  </summary>
-        private DtoUserInfo CreateDtoUserInfoFromTgMessage(Message tgMsg)
+        private DtoUserInfo CreateDtoUserInfoFromTgMessage(Message tgMsg, string eventId)
         {
             return new DtoUserInfo
             {

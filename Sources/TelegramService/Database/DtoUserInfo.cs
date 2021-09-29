@@ -25,7 +25,7 @@ namespace TelegramService.Database
         public string? WhoIsThis { get; set; }
 
         /// <summary> User Id in MainBot </summary>
-        public string? BotUserId { get; set; }
+        public string BotUserId { get; set; }
 
         protected bool Equals(DtoUserInfo other)
         {

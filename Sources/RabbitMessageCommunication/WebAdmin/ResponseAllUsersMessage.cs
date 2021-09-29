@@ -10,7 +10,7 @@
 
         public string SystemEventId { get; set; }
 
-        public UserInfo[] AllUsersInfos { get; set; }
+        public UserInfo[] AllUsersInfos { get; set; } = new UserInfo[0];
 
         /// <summary> Single user info </summary>
         public class UserInfo
@@ -22,13 +22,10 @@
             public string? BotUserId { get; set; }
 
             /// <summary> Is user activated? </summary>
-            public bool IsActivate { get; set; }
+            public bool IsActive { get; set; }
 
             /// <summary> User name in bot-system </summary>
-            public string? BotUserName { get; set; }
-
-            /// <summary> Autogenerate name in bot-system </summary>
-            public string? SystemUserInfo { get; set; }
+            public string? WhoIsThis { get; set; }
 
             /// <summary> Jenkins name </summary>
             public string? JenkinsUserName { get; set; }
