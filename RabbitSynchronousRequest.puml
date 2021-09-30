@@ -1,0 +1,33 @@
+@startuml Rabbit synchronous request
+title Executing synchronous request throught RabbitMQ
+
+box "Service 1" #lightgreen
+control  Task  as waitTask
+participant "Service 1"  as s1 
+end box
+box Rabbit #LightSkyBlue
+queue  "Temporary queue\nfor response" as s2tem
+queue "Service 2\nQueue for sync requests" as s2q
+end box
+participant "Service 2" as s2 
+
+
+activate s1 #Pink
+create  waitTask
+s1 -> waitTask : Create task source
+create s2tem
+s1 -> s2tem ++ #lightgreen : Register temporary\nqueue for response 
+s1 -> s1 : Create consumer \nfrom temporary queue
+s1 -> s2q ++ #LightSalmon: <Publish>\nPulish Message
+...
+s2q -> s2 ++ : <Consume> Message
+deactivate s2q
+s2tem <- s2 -- : <Publish to temporary queue>\nResponse message
+...
+s1 <- s2tem : <Consume from temporary queue>\nResonse
+s1 -> s2tem : Destroy temporary queue
+destroy s2tem
+deactivate s2tem
+s1 -> waitTask : SetResult 
+
+@enduml

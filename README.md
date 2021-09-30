@@ -41,6 +41,26 @@ Other nodes:
 As a logger server I choose **Seq**. It's a simple but very useful server. I put logs into Seq via Serilog.
 
 
+## Communications between services
+_Assynchronous communications_ - standart messaging throught rabbit. Publish message to "Hub".
+
+_Synchronous communications_ - emulation of synchronous execution. I need it for forming webpages and so on.
+- Service 1
+    - Create Task from TaskCompletionSource and await it. 
+    - Create temporary quere for response. [One queue + "message id" would be enought, but I decide to go to this way]    
+    - Publish _request_ to the "Direct request queue" of another service. Message contains name of temporary queue for answer.
+- Service 2
+    - Consume _request_ from Service 1.
+    - Do the job!
+    - Publish _response_ to temporary queue
+- Service 1
+    - Consume _response_ from temporary queue
+    - Destroy temporary queue
+    - SetResult to task from TaskCompletionSource
+    - "await" relese processing
+
+![Executing synchronous request throught RabbitMQ](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/RabbitSynchronousRequest.puml)
+
 # [Underconstraction]
 
 # Some logic of working of Bot
