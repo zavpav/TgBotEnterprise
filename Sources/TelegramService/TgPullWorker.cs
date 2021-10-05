@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,9 +22,16 @@ namespace TelegramService
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                await this._telegramWrap.Pull();
-//                _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                await Task.Delay(1000, stoppingToken);
+                try
+                {
+                    await this._telegramWrap.Pull();
+                    //                _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+                    await Task.Delay(1000, stoppingToken);
+                }
+                catch (Exception e)
+                {
+                    this._logger.Information(e, "Exception TelegramService");
+                }
             }
         }
     }
