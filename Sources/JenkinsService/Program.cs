@@ -1,6 +1,8 @@
+using AutoMapper;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CommonInfrastructure;
+using JenkinsService.Database;
 using JenkinsService.RabbitCommunication;
 using Serilog;
 
@@ -22,7 +24,16 @@ namespace JenkinsService
                     ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
                         EnumInfrastructureServicesType.BuildService);
 
-                    services.AddHostedService<Worker>();
+                    services.ConfigureDatabase<JenkinsDbContext>("jenkins", configuration);
+
+                    var mapperConfig = new MapperConfiguration(mc =>
+                    {
+                        mc.AddProfile(new MappingProfile());
+                    });
+                    var mapper = mapperConfig.CreateMapper();
+                    services.AddSingleton<IMapper>(mapper);
+
+                    services.AddHostedService<JenkinsWorker>();
                 });
     }
 }

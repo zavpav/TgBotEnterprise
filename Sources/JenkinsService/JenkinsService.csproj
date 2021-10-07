@@ -26,4 +26,8 @@
     <ProjectReference Include="..\InfrastructureServices\CommonInfrastructure.csproj" />
     <ProjectReference Include="..\RabbitMqInfrastructure\RabbitMqInfrastructure.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Database\Migrations\" />
+  </ItemGroup>
 </Project>

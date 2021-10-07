@@ -1,10 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
+using AutoMapper;
 using CommonInfrastructure;
+using RedmineService.Database;
 using RedmineService.RabbitCommunication;
 using Serilog;
-using Serilog.Events;
 
 namespace RedmineService
 {
@@ -24,7 +24,16 @@ namespace RedmineService
                     ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
                         EnumInfrastructureServicesType.BugTracker);
 
-                    services.AddHostedService<Worker>();
+                    services.ConfigureDatabase<RedmineDbContext>("redmine", configuration);
+
+                    var mapperConfig = new MapperConfiguration(mc =>
+                    {
+                        mc.AddProfile(new MappingProfile());
+                    });
+                    var mapper = mapperConfig.CreateMapper();
+                    services.AddSingleton<IMapper>(mapper);
+
+                    services.AddHostedService<RedmineWorker>();
                 });
     }
 }

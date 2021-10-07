@@ -41,6 +41,11 @@ services:
     - RABBIT_MQ=tg-rabbit-mq
     - NODE_NAME=Redmine
     - LOGGER_HOST=tg-seq-logger
+
+    - POSTGRE_HOST=tg-postgre
+    - POSTGRE_PORT=5432
+    - POSTGRE_USER=postgres
+    - POSTGRE_PASSWORD=123456
     volumes:
     - ../DockerVolumes/RedmineConfig/Secretic:/app/Secretic
   jenkinsservice:
@@ -53,6 +58,11 @@ services:
     - RABBIT_MQ=tg-rabbit-mq
     - NODE_NAME=Jenkins
     - LOGGER_HOST=tg-seq-logger
+
+    - POSTGRE_HOST=tg-postgre
+    - POSTGRE_PORT=5432
+    - POSTGRE_USER=postgres
+    - POSTGRE_PASSWORD=123456
     volumes:
     - ../DockerVolumes/JenkinsConfig/Secretic:/app/Secretic
   mainbotservice:
