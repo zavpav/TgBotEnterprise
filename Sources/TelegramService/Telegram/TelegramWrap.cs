@@ -31,7 +31,7 @@ namespace TelegramService.Telegram
         private readonly IRabbitService _rabbitService;
         private readonly IGlobalEventIdGenerator _globalEventIdGenerator;
 
-        private readonly SemaphoreSlim _toLock = new SemaphoreSlim(1, 1);
+        private readonly AsyncAwaitLock _lock  = new AsyncAwaitLock();
 
         private int _tgMessageOffset;
 
@@ -127,46 +127,39 @@ namespace TelegramService.Telegram
         /// <summary> Update information </summary>
         private async ValueTask<UserCache> UpdateDbUser(DtoUserInfo currUsrInfo, string eventId)
         {
-            await this._toLock.WaitAsync();
+            using var lc = await this._lock.Lock(new TimeSpan(0, 1, 0));
 
-            try
+            var usrInfo = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.TelegramUserId == currUsrInfo.TelegramUserId);
+            if (usrInfo == null)
             {
-                var usrInfo = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.TelegramUserId == currUsrInfo.TelegramUserId);
-                if (usrInfo == null)
-                {
-                    // Add new telegram user
-                    await this._dbContext.UsersInfo.AddAsync(currUsrInfo);
-                    await this._dbContext.SaveChangesAsync();
+                // Add new telegram user
+                await this._dbContext.UsersInfo.AddAsync(currUsrInfo);
+                await this._dbContext.SaveChangesAsync();
 
-                    await this._rabbitService.PublishInformation(RabbitMessages.TelegramPublishNewUserFromTelegram,
-                        new TelegramPublishNewUserFromTelegram
-                        {
-                            SystemEventId = eventId,
-                            BotUserId = currUsrInfo.BotUserId,
-                            WhoIsThis = currUsrInfo.WhoIsThis
-                        });
-                }
-                else
-                {
-                    if (usrInfo.DefaultChatId != currUsrInfo.DefaultChatId || currUsrInfo.WhoIsThis != usrInfo.WhoIsThis)
+                await this._rabbitService.PublishInformation(RabbitMessages.TelegramPublishNewUserFromTelegram,
+                    new TelegramPublishNewUserFromTelegram
                     {
-                        // Update User Info
-                        usrInfo.DefaultChatId = currUsrInfo.DefaultChatId ?? usrInfo.DefaultChatId;
-                        usrInfo.WhoIsThis = currUsrInfo.WhoIsThis;
-                        usrInfo.BotUserId = currUsrInfo.BotUserId;
-
-                        this._dbContext.UsersInfo.Update(usrInfo);
-                        await this._dbContext.SaveChangesAsync();
-                    }
-                }
-
-                var userCache = new UserCache(currUsrInfo.TelegramUserId, currUsrInfo.DefaultChatId, currUsrInfo.BotUserId);
-                return this._usersCache.AddOrUpdate(currUsrInfo.TelegramUserId, userCache, (id, exst) => userCache);
+                        SystemEventId = eventId,
+                        BotUserId = currUsrInfo.BotUserId,
+                        WhoIsThis = currUsrInfo.WhoIsThis
+                    });
             }
-            finally
+            else
             {
-                this._toLock.Release();
+                if (usrInfo.DefaultChatId != currUsrInfo.DefaultChatId || currUsrInfo.WhoIsThis != usrInfo.WhoIsThis)
+                {
+                    // Update User Info
+                    usrInfo.DefaultChatId = currUsrInfo.DefaultChatId ?? usrInfo.DefaultChatId;
+                    usrInfo.WhoIsThis = currUsrInfo.WhoIsThis;
+                    usrInfo.BotUserId = currUsrInfo.BotUserId;
+
+                    this._dbContext.UsersInfo.Update(usrInfo);
+                    await this._dbContext.SaveChangesAsync();
+                }
             }
+
+            var userCache = new UserCache(currUsrInfo.TelegramUserId, currUsrInfo.DefaultChatId, currUsrInfo.BotUserId);
+            return this._usersCache.AddOrUpdate(currUsrInfo.TelegramUserId, userCache, (id, exst) => userCache);
         }
 
         /// <summary> Create tg user information from telegram message  </summary>
@@ -174,7 +167,7 @@ namespace TelegramService.Telegram
         {
             return new DtoUserInfo
             {
-                DefaultChatId = tgMsg.Chat.Type != ChatType.Private ? null : (long?)tgMsg.Chat.Id,
+                DefaultChatId = tgMsg.Chat.Type != ChatType.Private ? null : (long?) tgMsg.Chat.Id,
                 BotUserId = "TG_TMP:" + tgMsg.From.Id,
                 IsActive = false,
                 TelegramUserId = tgMsg.From.Id,
