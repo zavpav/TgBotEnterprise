@@ -21,6 +21,7 @@ namespace TelegramService.Telegram
         Task Pull();
         Task Initialize();
         Task SendMessage(TelegramOutgoingMessage messageData);
+        void ClearUserCache();
     }
 
     public class TelegramWrap : ITelegramWrap
@@ -99,11 +100,15 @@ namespace TelegramService.Telegram
 
         private ConcurrentDictionary<long, UserCache> _usersCache = new ConcurrentDictionary<long, UserCache>();
 
+        public void ClearUserCache()
+        {
+            this._usersCache = new ConcurrentDictionary<long, UserCache>();
+        }
 
         /// <summary> Try to update telegram information. Add information if it doesn't exist. </summary>
         private async ValueTask<UserCache> TryUpdateTelegramUserInformation(Message tgMsg, string eventId)
         {
-            var currUsrInfo = this.CreateDtoUserInfoFromTgMessage(tgMsg, eventId);
+            var currUsrInfo = this.CreateTemporaryDtoUserInfoFromTgMessage(tgMsg, eventId);
             if (!this._usersCache.TryGetValue(tgMsg.From.Id, out var usr))
             {
                 usr = await this.UpdateDbUser(currUsrInfo, eventId);
@@ -158,12 +163,14 @@ namespace TelegramService.Telegram
                 }
             }
 
-            var userCache = new UserCache(currUsrInfo.TelegramUserId, currUsrInfo.DefaultChatId, currUsrInfo.BotUserId);
-            return this._usersCache.AddOrUpdate(currUsrInfo.TelegramUserId, userCache, (id, exst) => userCache);
+            usrInfo = await this._dbContext.UsersInfo.FirstAsync(x => x.TelegramUserId == currUsrInfo.TelegramUserId);
+
+            var userCache = new UserCache(usrInfo.TelegramUserId, usrInfo.DefaultChatId, usrInfo.BotUserId);
+            return this._usersCache.AddOrUpdate(usrInfo.TelegramUserId, userCache, (id, exst) => userCache);
         }
 
         /// <summary> Create tg user information from telegram message  </summary>
-        private DtoUserInfo CreateDtoUserInfoFromTgMessage(Message tgMsg, string eventId)
+        private DtoUserInfo CreateTemporaryDtoUserInfoFromTgMessage(Message tgMsg, string eventId)
         {
             return new DtoUserInfo
             {

@@ -59,6 +59,8 @@ namespace TelegramService
                 this._dbContext.UsersInfo.Update(usrInfo);
                 await this._dbContext.SaveChangesAsync();
             }
+
+            this._telegramWrap.ClearUserCache();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
