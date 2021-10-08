@@ -1,9 +1,12 @@
-﻿namespace RabbitMessageCommunication.MainBot
+﻿namespace RabbitMessageCommunication.WebAdmin
 {
-
-    /// <summary> Mesage from MainBot to all subscribers about user </summary>
-    public class MainBotUpdateUserInfo : IRabbitMessage
+    public class WebAdminUpdateUserInfo : IRabbitMessage
     {
+        public WebAdminUpdateUserInfo(string systemEventId)
+        {
+            this.SystemEventId = systemEventId;
+        }
+
         /// <summary> Event Id - Unique id in all services </summary>
         public string SystemEventId { get; set; }
 

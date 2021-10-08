@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.Hosting;
 using System.Collections.Generic;
 using System.Linq;
@@ -63,8 +64,13 @@ namespace MainBotService
                 this.ProcessNewUserFromTelegram,
                 this._logger);
 
-        }
+            this._rabbitService.Subscribe<WebAdminUpdateUserInfo>(EnumInfrastructureServicesType.WebAdmin,
+                RabbitMessages.WebAdminPublishUpdateUser,
+                this.ProcessUpdateUserFromWebAdmin,
+                this._logger);
 
+
+        }
 
         #endregion
 
@@ -117,43 +123,85 @@ namespace MainBotService
         private async Task ProcessNewUserFromTelegram(TelegramPublishNewUserFromTelegram newUserInfo, 
             IDictionary<string, string> rabbitMessageHeaders)
         {
-            var user = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.BotUserId == newUserInfo.BotUserId);
+            await this.ProcessUpdateUser(newUserInfo.BotUserId, 
+                newUserInfo.SystemEventId,
+                usr =>
+                    {
+                        if (usr != null)
+                        {
+                            usr.WhoIsThis ??= newUserInfo.WhoIsThis;
+                        }
+                        else
+                        {
+                            usr = new DtoUserInfo
+                            {
+                                BotUserId = newUserInfo.BotUserId,
+                                WhoIsThis = newUserInfo.WhoIsThis
+                            };
+                        }
+
+                        return usr;
+                    }
+                );
+        }
+
+        /// <summary> Process user information from web admin </summary>
+        private async Task ProcessUpdateUserFromWebAdmin(WebAdminUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
+        {
+            await this.ProcessUpdateUser(message.OriginalBotUserId ?? message.BotUserId, 
+                message.SystemEventId, 
+                usr =>
+                    {
+                        if (usr == null)
+                            usr = new DtoUserInfo();
+
+                        usr = this._mapper.Map(message, usr);
+                        
+                        return usr;
+                    }
+                );
+        }
+
+        /// <summary> Process user information </summary>
+        private async Task ProcessUpdateUser(string findBotId, string eventId, Func<DtoUserInfo?, DtoUserInfo> updateFunc)
+        {
+            var user = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.BotUserId == findBotId);
             if (user != null) // Maybe exists, if telegram message process first
             {
-                this._logger.Information(newUserInfo, 
-                    "MainBot user exists. Update from telegram information {UserInfoOld}->{UserInfoNew}",
-                    user.WhoIsThis,
-                    newUserInfo.WhoIsThis
-                    );
-                user.WhoIsThis = newUserInfo.WhoIsThis;
-                await this._dbContext.UsersInfo.AddAsync(user);
+                user = updateFunc(user);
+
+                this._logger.InformationWithEventContext(eventId,
+                    "MainBot user exists. Try Update from telegram information {BotUserId}->{@UserInfoNew}",
+                    findBotId,
+                    user
+                );
+
+                this._dbContext.UsersInfo.Update(user);
                 await this._dbContext.SaveChangesAsync();
             }
             else
             {
-                this._logger.Information(newUserInfo,
-                    "MainBot user doesn't exist. New user from telegram information {BotId}->{UserInfo}",
-                    newUserInfo.BotUserId,
-                    newUserInfo.WhoIsThis
+                user = updateFunc(null);
+
+                this._logger.InformationWithEventContext(eventId,
+                    "MainBot user doesn't exist. New user from telegram information {BotUserId}->{@UserInfoNew}",
+                    findBotId,
+                    user
                 );
-                user = new DtoUserInfo
-                {
-                    BotUserId = newUserInfo.BotUserId,
-                    WhoIsThis = newUserInfo.WhoIsThis
-                };
+
                 await this._dbContext.UsersInfo.AddAsync(user);
                 await this._dbContext.SaveChangesAsync();
-
             }
 
             // Send user update message to all subscribers
-            user = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.BotUserId == newUserInfo.BotUserId);
+            user = await this._dbContext.UsersInfo.FirstAsync(x => x.BotUserId == user.BotUserId);
             var updUserMessage = this._mapper.Map<MainBotUpdateUserInfo>(user);
-            updUserMessage.SystemEventId = newUserInfo.SystemEventId;
-            updUserMessage.OldBotUserId = null;
+            updUserMessage.SystemEventId = eventId;
+            updUserMessage.OriginalBotUserId = findBotId;
 
             // Publish information for all
             await this._rabbitService.PublishInformation(RabbitMessages.MainBotPublishUpdateUser, updUserMessage);
         }
+
     }
 }

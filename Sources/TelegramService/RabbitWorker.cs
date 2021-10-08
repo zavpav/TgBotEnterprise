@@ -44,7 +44,7 @@ namespace TelegramService
         private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
         {
             var usrInfo = await this._dbContext.UsersInfo
-                .FirstOrDefaultAsync(x => x.BotUserId == (message.OldBotUserId ?? message.BotUserId));
+                .FirstOrDefaultAsync(x => x.BotUserId == (message.OriginalBotUserId ?? message.BotUserId));
             if (usrInfo == null)
             {
                 this._logger.Information(message, "User doesn't exist {@newUserMessage}", message);
@@ -55,12 +55,10 @@ namespace TelegramService
             else
             {
                 this._logger.Information(message, "User exist {@oldUserInfo} {@newUserMessage}", usrInfo, message);
-                this._mapper.Map<MainBotUpdateUserInfo, DtoUserInfo>(message, usrInfo);
-                await this._dbContext.UsersInfo.AddAsync(usrInfo);
+                usrInfo = this._mapper.Map(message, usrInfo);
+                this._dbContext.UsersInfo.Update(usrInfo);
                 await this._dbContext.SaveChangesAsync();
             }
-
-
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)

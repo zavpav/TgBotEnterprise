@@ -15,8 +15,12 @@ namespace MainBotService
                 .ForMember(x => x.BotUserId, s => s.MapFrom(x => x.BotUserId))
                 .ForMember(x => x.WhoIsThis, s => s.MapFrom(x => x.WhoIsThis))
                 .ForMember(x => x.IsActive, s => s.MapFrom(x => x.IsActive));
+            
             CreateMap<DtoUserInfo, ResponseAllUsersMessage.UserInfo>(MemberList.Destination)
                 .ForMember(x => x.UserId, s => s.MapFrom(x => x.Id));
+
+            CreateMap<WebAdminUpdateUserInfo, DtoUserInfo>();
+
         }
     }
 }

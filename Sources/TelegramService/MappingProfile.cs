@@ -8,7 +8,7 @@ namespace TelegramService
     {
         public MappingProfile()
         {
-            CreateMap<DtoUserInfo, MainBotUpdateUserInfo>(MemberList.None)
+            CreateMap<MainBotUpdateUserInfo, DtoUserInfo>(MemberList.None)
                 .ForMember(x => x.BotUserId, s => s.MapFrom(x => x.BotUserId))
                 .ForMember(x => x.WhoIsThis, s => s.MapFrom(x => x.WhoIsThis));
         }

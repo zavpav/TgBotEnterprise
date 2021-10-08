@@ -24,14 +24,20 @@ namespace RabbitMessageCommunication
         #region Messages from MainBot
 
         /// <summary> Publish information about update user information </summary>
-        public const string MainBotPublishUpdateUser = "MainBotPublishNewUser";
+        public const string MainBotPublishUpdateUser = "MainBotPublishUpdateUser";
+
+
+        /// <summary> Direct request information from main bot about all users </summary>
+        public const string MainBotDirectGetAllUsers = "MainBotDirectGetAllUsers ";
 
         #endregion
 
         #region WebAdmin
 
         /// <summary> Publish information about update user information </summary>
-        public const string WebGetAllUsers = "MainBotPublishNewUser";
+        public const string WebAdminPublishUpdateUser = "WebAdminPublishUpdateUser";
+
+
 
         #endregion
 

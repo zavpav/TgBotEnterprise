@@ -39,7 +39,7 @@ namespace MainBotService.RabbitCommunication
                 return "OK"; // Check only existing service
             }
 
-            if (actionName.ToUpper() == RabbitMessages.WebGetAllUsers.ToUpper())
+            if (actionName.ToUpper() == RabbitMessages.MainBotDirectGetAllUsers.ToUpper())
             {
                 var requestAllMessage = JsonSerializer2.DeserializeRequired<RequestAllUsersMessage>(directMessage, this._logger);
                 this._logger.Information(requestAllMessage, "Processing {actionName} message {@message}", actionName, requestAllMessage);
