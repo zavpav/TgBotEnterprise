@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CommonInfrastructure;
 using MainBotService.Database;
-using MainBotService.MainBotParts;
 using MainBotService.RabbitCommunication;
 using Serilog;
 
@@ -40,7 +39,6 @@ namespace MainBotService
                     services.AddSingleton<IMapper>(mapper);
 
 
-                    services.AddSingleton<TelegramProcessor>();
                     services.AddHostedService<MainBotWorker>();
                 });
     }

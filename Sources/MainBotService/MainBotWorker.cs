@@ -7,9 +7,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using CommonInfrastructure;
 using MainBotService.Database;
-using MainBotService.MainBotParts;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualBasic;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.MainBot;
 using RabbitMessageCommunication.WebAdmin;
@@ -18,25 +16,28 @@ using Serilog;
 
 namespace MainBotService
 {
-    public class MainBotWorker : BackgroundService
+    public partial class MainBotWorker : BackgroundService
     {
         private readonly ILogger _logger;
         private readonly IRabbitService _rabbitService;
         private readonly IMapper _mapper;
-        private readonly TelegramProcessor _telegramProcessor;
         private readonly BotServiceDbContext _dbContext;
+
+        private readonly TelegramProcessor _telegramProcessor;
+        private readonly RedmineProcessor _redmineProcessor;
 
         public MainBotWorker(ILogger logger, 
             IRabbitService rabbitService,
             IMapper mapper, 
-            TelegramProcessor telegramProcessor,
             BotServiceDbContext dbContext)
         {
             this._logger = logger;
             this._rabbitService = rabbitService;
-            _mapper = mapper;
-            this._telegramProcessor = telegramProcessor;
+            this._mapper = mapper;
             this._dbContext = dbContext;
+
+            this._telegramProcessor = new TelegramProcessor(this);
+            this._redmineProcessor = new RedmineProcessor(this);
         }
 
         #region Initialization
@@ -105,7 +106,9 @@ namespace MainBotService
             }
         }
 
-        /// <summary> Update local databse from message </summary>
+        #region User data updates
+        
+        /// <summary> Update local databse from message if user doesn't exist</summary>
         private async Task UpdateUserInfoFromTelegram(string botUserId)
         {
             var userExists = this._dbContext.UsersInfo.Any(x => x.BotUserId == botUserId);
@@ -146,16 +149,18 @@ namespace MainBotService
         }
 
         /// <summary> Process user information from web admin </summary>
-        private async Task ProcessUpdateUserFromWebAdmin(WebAdminUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
+        /// <param name="newUserInfo">Information about user</param>
+        /// <param name="rabbitMessageHeaders">Rabbit headers</param>
+        private async Task ProcessUpdateUserFromWebAdmin(WebAdminUpdateUserInfo newUserInfo, IDictionary<string, string> rabbitMessageHeaders)
         {
-            await this.ProcessUpdateUser(message.OriginalBotUserId ?? message.BotUserId, 
-                message.SystemEventId, 
+            await this.ProcessUpdateUser(newUserInfo.OriginalBotUserId ?? newUserInfo.BotUserId, 
+                newUserInfo.SystemEventId, 
                 usr =>
                     {
                         if (usr == null)
                             usr = new DtoUserInfo();
 
-                        usr = this._mapper.Map(message, usr);
+                        usr = this._mapper.Map(newUserInfo, usr);
                         
                         return usr;
                     }
@@ -203,5 +208,6 @@ namespace MainBotService
             await this._rabbitService.PublishInformation(RabbitMessages.MainBotPublishUpdateUser, updUserMessage);
         }
 
+        #endregion
     }
 }
