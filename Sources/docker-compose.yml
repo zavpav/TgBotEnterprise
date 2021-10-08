@@ -93,7 +93,7 @@ services:
     - LOGGER_HOST=tg-seq-logger
     
     - POSTGRE_HOST=tg-postgre
-    - POSTGRE_PORT=5432
+    - POSTGRE_PORT=5434
     - POSTGRE_USER=postgres
     - POSTGRE_PASSWORD=123456
 

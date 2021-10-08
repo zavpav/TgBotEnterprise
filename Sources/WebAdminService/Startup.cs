@@ -34,7 +34,6 @@ namespace WebAdminService
             var mapper = mapperConfig.CreateMapper();
             services.AddSingleton<IMapper>(mapper);
 
-
             services.AddRazorPages();
             services.AddServerSideBlazor();
 

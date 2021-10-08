@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using WebAdminService.Data;
 
 namespace WebAdminService
 {
@@ -6,7 +7,9 @@ namespace WebAdminService
     {
         public MappingProfile()
         {
-            CreateMap<RabbitMessageCommunication.WebAdmin.ResponseAllUsersMessage.UserInfo, WebAdminService.Data.CurrentUsersService.UserDataPresentor>(MemberList.None);
+            CreateMap<RabbitMessageCommunication.WebAdmin.ResponseAllUsersMessage.UserInfo, CurrentUsersService.UserDataPresentor>(MemberList.None)
+                .ForMember(x => x.OriginalBotUserId, s => s.MapFrom(x => x.BotUserId));
+            CreateMap<CurrentUsersService.UserDataPresentor, RabbitMessageCommunication.WebAdmin.WebAdminUpdateUserInfo> (MemberList.None);
         }
     }
 }

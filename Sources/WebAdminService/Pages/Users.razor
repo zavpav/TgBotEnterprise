@@ -14,7 +14,6 @@ else if (this._users.Length == 0)
 }
 else
 {
-
     <table class="table">
         <thead>
             <tr>
@@ -23,31 +22,22 @@ else
                 <th>Jenkins name</th>
                 <th>Redmine full name</th>
                 <th>Is user activated?</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var usr in this._users)
             {
-                <tr>
-                    <td>@usr.BotUserId</td>
-                    <td>@usr.WhoIsThis</td>
-                    <td>@usr.JenkinsUserName</td>
-                    <td>@usr.RedmineUserName</td>
-                    <td>@usr.IsActive</td>
+                <tr name="UserRow @usr.OriginalBotUserId">
+                    <td><input name="BotUserId" @bind="usr.BotUserId" /></td>
+                    <td><input name="WhoIsThis" @bind="usr.WhoIsThis" /></td>
+                    <td><input name="JenkinsUserName" @bind="usr.JenkinsUserName" /></td>
+                    <td><input name="RedmineUserName" @bind="usr.RedmineUserName" /></td>
+                    <td><input name="IsActive" type="checkbox" @bind="usr.IsActive" /></td>
+                    <td><button name="SaveButton" @onclick="() => SaveRow(usr)">Save</button> </td>
                 </tr>
             }
         </tbody>
     </table>
-
-}
-
-
-@code {
-    private CurrentUsersService.UserDataPresentor[]? _users;
-
-    protected override async Task OnInitializedAsync()
-    {
-        this._users = await this.CurrentUsersService.GetUsersAsync();
-    }
 
 }

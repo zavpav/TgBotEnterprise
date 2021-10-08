@@ -23,7 +23,7 @@ namespace WebAdminService.Data
         {
             this._rabbitService = rabbitService;
             this._logger = logger;
-            _mapper = mapper;
+            this._mapper = mapper;
             this._eventIdGenerator = eventIdGenerator;
         }
 
@@ -31,17 +31,28 @@ namespace WebAdminService.Data
         {
             var request = new RequestAllUsersMessage(this._eventIdGenerator.GetNextEventId());
             var response = await this._rabbitService.DirectRequestToMainBot<RequestAllUsersMessage, ResponseAllUsersMessage>(
-                RabbitMessages.WebGetAllUsers, request);
+                RabbitMessages.MainBotDirectGetAllUsers, request);
 
             var users = this._mapper.Map<UserDataPresentor[]>(response.AllUsersInfos) ?? new UserDataPresentor[]{};
             return users;
         }
 
+        /// <summary> Publish a update user data message </summary>
+        public async Task UpdateUserAsync(UserDataPresentor userData)
+        {
+
+            var message = new WebAdminUpdateUserInfo(this._eventIdGenerator.GetNextEventId());
+            message = this._mapper.Map(userData, message);
+
+            await this._rabbitService.PublishInformation(RabbitMessages.WebAdminPublishUpdateUser, message);
+        }
+
+
         public class UserDataPresentor
         {
-            /// <summary> Syntethic user id </summary>
-            public int UserId { get; set; }
-            
+            /// <summary> User id in bot-system </summary>
+            public string? OriginalBotUserId { get; set; }
+
             /// <summary> User id in bot-system </summary>
             public string? BotUserId { get; set; }
 
@@ -57,6 +68,5 @@ namespace WebAdminService.Data
             /// <summary> Is user activated? </summary>
             public bool IsActive { get; set; }
         }
-
     }
 }
