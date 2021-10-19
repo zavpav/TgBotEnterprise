@@ -7,12 +7,12 @@ using TelegramService.Telegram;
 
 namespace TelegramService
 {
-    public class TgPullWorker : BackgroundService
+    public class TgWorker : BackgroundService
     {
         private readonly ILogger _logger;
         private readonly ITelegramWrap _telegramWrap;
 
-        public TgPullWorker(ILogger logger, ITelegramWrap telegramWrap)
+        public TgWorker(ILogger logger, ITelegramWrap telegramWrap)
         {
             this._logger = logger;
             this._telegramWrap = telegramWrap;

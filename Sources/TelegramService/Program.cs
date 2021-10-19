@@ -31,7 +31,7 @@ namespace TelegramService
                 .ConfigureServices((hostContext, services) =>
                 {
                     var configuration = hostContext.Configuration;
-                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
+                    ConfigurationServiceExtension.ConfigureServices<RabbitProcessor>(configuration, services,
                         EnumInfrastructureServicesType.Messaging);
 
                     services.ConfigureDatabase<TgServiceDbContext>("telegram", configuration);
@@ -62,8 +62,7 @@ namespace TelegramService
                     services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(tgKey));
                     services.AddSingleton<ITelegramWrap, TelegramWrap>();
 
-                    services.AddHostedService<RabbitWorker>();
-                    services.AddHostedService<TgPullWorker>();
+                    services.AddHostedService<TgWorker>();
                 });
     }
 

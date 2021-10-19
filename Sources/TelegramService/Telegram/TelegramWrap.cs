@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
 using RabbitMessageCommunication;
 using RabbitMqInfrastructure;
 using Serilog;
@@ -217,6 +215,9 @@ namespace TelegramService.Telegram
         {
             return Task.CompletedTask;
         }
+
+
+
 
         public async Task SendMessage(TelegramOutgoingMessage messageData)
         {
