@@ -21,6 +21,8 @@ namespace MainBotService
 
             CreateMap<WebAdminUpdateUserInfo, DtoUserInfo>();
 
+            CreateMap<DtoProject, MainBotProjectInfo>();
+
         }
     }
 }

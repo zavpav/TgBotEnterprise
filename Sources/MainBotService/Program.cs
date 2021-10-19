@@ -25,7 +25,7 @@ namespace MainBotService
                 .ConfigureServices((hostContext, services) =>
                 {
                     var configuration = hostContext.Configuration;
-                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
+                    ConfigurationServiceExtension.ConfigureServices<RabbitCommunication.MainBotService>(configuration, services,
                         EnumInfrastructureServicesType.Main);
 
                     services.ConfigureDatabase<BotServiceDbContext>("main_bot", configuration);

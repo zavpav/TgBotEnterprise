@@ -3,16 +3,16 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 
-namespace MainBotService
+namespace MainBotService.RabbitCommunication
 {
-    public partial class MainBotWorker
+    public partial class MainBotService
     {
         /// <summary> Process income telegram messages </summary>
         public class TelegramProcessor
         {
-            private readonly MainBotWorker _owner;
+            private readonly MainBotService _owner;
 
-            public TelegramProcessor(MainBotWorker owner)
+            public TelegramProcessor(MainBotService owner)
             {
                 this._owner = owner;
             }
