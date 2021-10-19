@@ -22,13 +22,14 @@ namespace RabbitMqInfrastructure
         /// <summary> Publish information from node to CentralHub </summary>
         /// <param name="actionName">Method name</param>
         /// <param name="message">Information</param>
+        /// <param name="subscriberServiceType">Subscriber type</param>
         /// <param name="eventId">Unique event id</param>
-        Task PublishInformation(string actionName, string message, string? eventId = null);
+        Task PublishInformation(string actionName, string message, EnumInfrastructureServicesType? subscriberServiceType, string? eventId = null);
 
         /// <summary> Subscribe to central information </summary>
-        /// <param name="serviceType">Service type</param>
+        /// <param name="publisherServiceType">Service type</param>
         /// <param name="actionName">Action. If null - subcribe all for service</param>
         /// <param name="processFunc">Func generate Task for processing message params[message, headers]</param>
-        void Subscribe(EnumInfrastructureServicesType serviceType, string? actionName, ProcessMessage processFunc);
+        void Subscribe(EnumInfrastructureServicesType? publisherServiceType, string? actionName, ProcessMessage processFunc);
     }
 }

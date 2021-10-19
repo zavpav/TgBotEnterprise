@@ -1,14 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace RabbitMqInfrastructure
 {
-    public interface IDirectRequestProcessor
+    /// <summary> Rabbot message processor  </summary>
+    public interface IRabbitProcessor
     {
-        /// <summary>
-        /// Process messages
-        /// </summary>
+        /// <summary> Process direct messages </summary>
         /// <param name="rabbit">Reference to rabbit service</param>
         /// <param name="actionName">Action name</param>
         /// <param name="messageHeaders">Message headers</param>
@@ -18,15 +16,9 @@ namespace RabbitMqInfrastructure
             string actionName,
             IDictionary<string, string> messageHeaders, 
             string directMessage);
-    }
 
-    public class DirectRequestProcessorStub : IDirectRequestProcessor
-    {
-        public Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit, string actionName, IDictionary<string, string> messageHeaders,
-            string directMessage)
-        {
-            Console.WriteLine(actionName);
-            return Task.FromResult("directMessage");
-        }
+        /// <summary> Subscribe on other services messages  </summary>
+        void Subscribe();
+
     }
 }

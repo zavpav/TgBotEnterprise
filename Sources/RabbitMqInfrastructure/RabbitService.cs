@@ -20,13 +20,13 @@ namespace RabbitMqInfrastructure
         /// <summary> Rabbit server </summary>
         private readonly string _rabbitHost;
 
-        private readonly IDirectRequestProcessor _requestProcessor;
+        private readonly Lazy<IRabbitProcessor> _requestProcessor;
         private readonly ILogger _logger;
 
 
         public RabbitService(INodeInfo nodeInfo,
-            string rabbitHost, 
-            IDirectRequestProcessor requestProcessor,
+            string rabbitHost,
+            Lazy<IRabbitProcessor> requestProcessor,
             ILogger logger)
         {
             this._nodeInfo = nodeInfo;
@@ -41,6 +41,10 @@ namespace RabbitMqInfrastructure
 
         /// <summary> Name for publish data from node </summary>
         private static readonly string CentralHubExchangeName = RequestPrefixes.CentralPublisher;
+
+        /// <summary> Timeout at direct request </summary>
+        private const int DirectRequestTimeoutSec = 30;
+
 
         private volatile IConnection? _connection;
         private IModel? _channel;
@@ -126,18 +130,26 @@ namespace RabbitMqInfrastructure
         {
             var requestMessage = Encoding.UTF8.GetString(e.Body.ToArray());
             var messageHeaders = this.ConvertHeadersToString(e.BasicProperties.Headers);
-            
+
             messageHeaders.TryGetValue(SystemEventIdHeaderName, out var eventId);
             this._logger.InformationWithEventContext(eventId, "ProcessDirectRequest {rawMessage} {@headers}", requestMessage, messageHeaders);
 
+            try
+            {
 
-            var actionName = messageHeaders["ActionName"];
-            var responseMessage = await this._requestProcessor.ProcessDirectUntypedMessage(this, actionName, messageHeaders, requestMessage);
+                var actionName = messageHeaders["ActionName"];
+                var responseMessage = await this._requestProcessor.Value.ProcessDirectUntypedMessage(this, actionName, messageHeaders, requestMessage);
 
-            this._logger.InformationWithEventContext(eventId, "Response ProcessDirectRequest {rawMessage}", responseMessage);
+                this._logger.InformationWithEventContext(eventId, "Response ProcessDirectRequest {rawMessage}", responseMessage);
 
-            var msgBody = Encoding.UTF8.GetBytes(responseMessage);
-            this._channel.BasicPublish("", e.BasicProperties.CorrelationId, body: msgBody);
+                var msgBody = Encoding.UTF8.GetBytes(responseMessage);
+                this._channel.BasicPublish("", e.BasicProperties.CorrelationId, body: msgBody);
+            }
+            catch (Exception exception)
+            {
+                this._logger.ErrorWithEventContext(eventId, exception, "Error in ProcessDirectRequest");
+                throw;
+            }
         }
 
         /// <summary> Direct request for another service </summary>
@@ -202,8 +214,7 @@ namespace RabbitMqInfrastructure
         {
             using (var timeoutCancellationTokenSource = new CancellationTokenSource())
             {
-
-                var completedTask = await Task.WhenAny(tcsResponse.Task, Task.Delay(TimeSpan.FromSeconds(10), timeoutCancellationTokenSource.Token));
+                var completedTask = await Task.WhenAny(tcsResponse.Task, Task.Delay(TimeSpan.FromSeconds(DirectRequestTimeoutSec), timeoutCancellationTokenSource.Token));
                 if (completedTask == tcsResponse.Task)
                 {
                     timeoutCancellationTokenSource.Cancel();
@@ -220,8 +231,10 @@ namespace RabbitMqInfrastructure
         /// <summary> Publish information from node to CentralHub </summary>
         /// <param name="actionName">Method name</param>
         /// <param name="message">Information</param>
+        /// <param name="subscriberServiceType"></param>
         /// <param name="eventId">Unique event id</param>
-        public Task PublishInformation(string actionName, string message, string? eventId = null)
+        public Task PublishInformation(string actionName, string message,
+            EnumInfrastructureServicesType? subscriberServiceType, string? eventId = null)
         {
             var channel = this.Channel();
 
@@ -231,6 +244,10 @@ namespace RabbitMqInfrastructure
                 { "Publisher", this._nodeInfo.ServicesType.ToString() },
                 { "ActionName", actionName }
             };
+            
+            if (subscriberServiceType != null)
+                publishHeaders.Add("InfrastructureServicesType", subscriberServiceType.Value.ToString());
+
             if (eventId != null)
                 publishHeaders.Add(SystemEventIdHeaderName, eventId);
 
@@ -251,11 +268,14 @@ namespace RabbitMqInfrastructure
         }
 
         /// <summary> Subscribe to central information </summary>
-        /// <param name="serviceType">Service type</param>
+        /// <param name="publisherServiceType">Service type</param>
         /// <param name="actionName">Action. If null - subcribe all for service</param>
         /// <param name="processFunc">Func generate Task for processing message params[message, headers]</param>
-        public void Subscribe(EnumInfrastructureServicesType serviceType, string? actionName, ProcessMessage processFunc)
+        public void Subscribe(EnumInfrastructureServicesType? publisherServiceType, string? actionName, ProcessMessage processFunc)
         {
+            if (publisherServiceType == null && actionName == null)
+                throw new ArgumentException("publisherServiceType == null && actionName == null");
+
             var channel = this.Channel();
 
             var subscribedQueue = channel.QueueDeclare(
@@ -267,8 +287,10 @@ namespace RabbitMqInfrastructure
             var headers = new Dictionary<string, object>
             {
                 { "QueueType", RequestPrefixes.CentralPublisher },
-                { "Publisher", serviceType.ToString() }
             };
+
+            if (publisherServiceType != null)
+                headers.Add("Publisher", publisherServiceType.Value.ToString());
 
             if (actionName != null )
                 headers.Add("ActionName", actionName);

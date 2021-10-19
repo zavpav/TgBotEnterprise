@@ -21,7 +21,7 @@ namespace RabbitMqInfrastructure
         /// <param name="messageProcessor">Message processor</param>
         /// <param name="logger">Logger</param>
         public static void Subscribe<T>(this IRabbitService rabbitService, 
-            EnumInfrastructureServicesType serviceType, 
+            EnumInfrastructureServicesType? serviceType, 
             string actionName,
             ProcessMessage<T> messageProcessor,
             ILogger logger)
@@ -35,11 +35,11 @@ namespace RabbitMqInfrastructure
                 });
         }
 
-        public static async Task PublishInformation<T>(this IRabbitService rabbitService, string actionName, T messageData)
+        public static async Task PublishInformation<T>(this IRabbitService rabbitService, string actionName, T messageData, EnumInfrastructureServicesType? subscriberServiceType = null)
         where T : IRabbitMessage
         {
             var jsonMessage = JsonSerializer.Serialize(messageData);
-            await rabbitService.PublishInformation(actionName, jsonMessage, messageData.SystemEventId);
+            await rabbitService.PublishInformation(actionName, jsonMessage, subscriberServiceType, messageData.SystemEventId);
         }
 
         /// <summary> Direct request to MainBot </summary>
