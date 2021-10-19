@@ -1,0 +1,100 @@
+﻿@page "/Projects/{ProjectSysName}"
+@using System.Collections.Concurrent
+@using Microsoft.Extensions.Logging
+@using RabbitMessageCommunication.WebAdmin
+@using WebAdminService.Data
+@inject ProjectSettingService ProjectSettingService
+<h3>ProjectEdit</h3>
+
+@if (this._project == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div>
+        EventId @this._eventId
+    </div>
+    <label id="SysName">@this._project.SysName</label>
+    <div>
+        Description <input id="Description" @bind="this._project.Description" />
+    </div>
+    <div>
+        Current Version
+        <input id="CurrentVersion" @bind="this._project.CurrentVersion" />
+    </div>
+    <div>
+        RcVersion
+        <input id="RcVersion" @bind="this._project.RcVersion" />
+    </div>
+
+    foreach (var serviceSettings in this._settings
+        .OrderBy(x => x.Key)
+        .Select(x => x.Value))
+    {
+        <div name="@serviceSettings.SystemEventId">
+            <label id="serviceName">@serviceSettings.ServiceDescription</label>
+            <table>
+                <thead>
+                    <tr>
+                        <th>SystemName</th>
+                        <th>Name</th>
+                        <th>Value</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var setting in serviceSettings.SettingsItems)
+                    {
+                        <tr>
+                            <td>@setting.SystemName</td>
+                            <td>@setting.Description</td>
+                            <td><input name="Value" @bind="setting.Value" /></td>
+                            <td>@setting.SettingType</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    <button name="SaveButton" @onclick="() => SaveSettings()">Save</button>
+}
+
+@code {
+
+    private ProjectSettingService.ProjectSettingsMainInfoPresentor? _project;
+    private string? _eventId;
+
+    private ConcurrentDictionary<string, WebAdminResponseProjectSettingsMessage> _settings = new ConcurrentDictionary<string, WebAdminResponseProjectSettingsMessage>();
+
+    [Parameter]
+    public string ProjectSysName { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        this._project = await this.ProjectSettingService.GetSingleProject(this.ProjectSysName);
+        this._eventId = await this.ProjectSettingService.RequestProjectSettings(this.ProjectSysName, this.ProcessSettingGet);
+    }
+
+    /// <summary>
+    /// Process incoming message
+    /// </summary>
+    /// <param name="eventId"></param>
+    /// <param name="message"></param>
+    /// <returns></returns>
+    private async Task ProcessSettingGet(string eventId, WebAdminResponseProjectSettingsMessage message)
+    {
+        this._settings.TryAdd($"{message.SystemEventId}:{message.ServicesType}:{message.NodeName}", message);
+        await this.InvokeAsync(this.StateHasChanged);
+    }
+
+    /// <summary> Save all settings </summary>
+    private async Task SaveSettings()
+    {
+        if (this._project == null)
+            throw new NotSupportedException("this._project != null");
+
+        await this.ProjectSettingService.SaveSettings(this._project, this._settings.Values.ToList());
+    }
+
+}

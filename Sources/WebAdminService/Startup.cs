@@ -24,7 +24,7 @@ namespace WebAdminService
         public void ConfigureServices(IServiceCollection services)
         {
             var configuration = this.Configuration;
-            ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessorStub>(configuration, services, 
+            ConfigurationServiceExtension.ConfigureServices<RabbitProcessor>(configuration, services, 
                 EnumInfrastructureServicesType.WebAdmin);
 
             var mapperConfig = new MapperConfiguration(mc =>
@@ -38,7 +38,8 @@ namespace WebAdminService
             services.AddServerSideBlazor();
 
             services.AddSingleton<CurrentUsersService>();
-            
+            services.AddSingleton<ProjectSettingService>();
+
             services.AddSingleton<WeatherForecastService>();
             services.AddSingleton<MainPageService>();
             services.AddSingleton<BugTrackerService>();

@@ -29,9 +29,8 @@ namespace WebAdminService.Data
 
         public async Task<UserDataPresentor[]?> GetUsersAsync()
         {
-            var request = new RequestAllUsersMessage(this._eventIdGenerator.GetNextEventId());
-            var response = await this._rabbitService.DirectRequestToMainBot<RequestAllUsersMessage, ResponseAllUsersMessage>(
-                RabbitMessages.MainBotDirectGetAllUsers, request);
+            var request = new EmptyMessage(this._eventIdGenerator.GetNextEventId());
+            var response = await this._rabbitService.DirectRequestToMainBot<EmptyMessage, ResponseAllUsersMessage>(RabbitMessages.MainBotDirectGetAllUsers, request);
 
             var users = this._mapper.Map<UserDataPresentor[]>(response.AllUsersInfos) ?? new UserDataPresentor[]{};
             return users;

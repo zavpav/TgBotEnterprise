@@ -1,0 +1,54 @@
+﻿@page "/Projects"
+@using WebAdminService.Data
+@inject ProjectSettingService ProjectSettingService
+
+<h3>ProjectsList</h3>
+
+Reaquest message <em></em>
+
+@if (this._projects == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (this._projects.Length == 0)
+{
+    <h3><em>No data found...</em></h3>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>System name</th>
+                <th>Description</th>
+                <th>Current Version</th>
+                <th>Rc Version</th>
+
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var prj in this._projects)
+            {
+                <tr name="ProjectRow @prj.SysName">
+                    <td>@prj.SysName</td>
+                    <td>@prj.Description</td>
+                    <td>@prj.CurrentVersion</td>
+                    <td>@prj.RcVersion</td>
+                    <td><a href="/Projects/@prj.SysName">Edit</a> </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+}
+
+@code {
+    private ProjectSettingService.ProjectSettingsMainInfoPresentor[]? _projects;
+
+    protected override async Task OnInitializedAsync()
+    {
+        this._projects = await this.ProjectSettingService.GetProjectsListAsync();
+    }
+
+}

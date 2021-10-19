@@ -9,6 +9,21 @@
 @code {
     private int currentCount = 0;
 
+
+    protected override Task OnInitializedAsync()
+    {
+        Task.Run(async () =>
+        {
+            while (true)
+            {
+                this.currentCount++;
+                await this.InvokeAsync(this.StateHasChanged);
+                await Task.Delay(1000);
+            }
+        });
+        return base.OnInitializedAsync();
+    }
+
     private void IncrementCount()
     {
         currentCount++;
