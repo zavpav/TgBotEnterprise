@@ -26,9 +26,14 @@ namespace RabbitMessageCommunication
         /// <summary> Publish information about update user information </summary>
         public const string MainBotPublishUpdateUser = "MainBotPublishUpdateUser";
 
-
         /// <summary> Direct request information from main bot about all users </summary>
         public const string MainBotDirectGetAllUsers = "MainBotDirectGetAllUsers ";
+
+        /// <summary> Direct request information from main bot about all exiting projects </summary>
+        public const string MainBotProjectsInfoRequest = "MainBotProjectsInfoRequest";
+
+        /// <summary> Publish project innformation changes  </summary>
+        public const string MainBotProjectSettingsUpdate = "MainBotProjectSettingsUpdate";
 
         #endregion
 
@@ -37,7 +42,14 @@ namespace RabbitMessageCommunication
         /// <summary> Publish information about update user information </summary>
         public const string WebAdminPublishUpdateUser = "WebAdminPublishUpdateUser";
 
+        /// <summary> Request needed project settings from other services </summary>
+        public const string WebAdminProjectSettingsRequest = "WebAdminProjectSettingsRequest";
 
+        /// <summary> Response on request needed project settings from other services </summary>
+        public const string WebAdminProjectSettingsResponse = "WebAdminProjectSettingsResponse";
+
+        /// <summary> Update needed project settings on each service </summary>
+        public const string WebAdminProjectSettingsUpdate = "WebAdminProjectSettingsUpdate";
 
         #endregion
 

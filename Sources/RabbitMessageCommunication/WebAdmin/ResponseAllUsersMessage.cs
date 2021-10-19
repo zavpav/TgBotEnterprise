@@ -8,6 +8,7 @@
             this.SystemEventId = systemEventId;
         }
 
+        /// <summary> Message Income Id - Unique id in all services </summary>
         public string SystemEventId { get; set; }
 
         public UserInfo[] AllUsersInfos { get; set; } = new UserInfo[0];

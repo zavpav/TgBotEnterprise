@@ -65,6 +65,23 @@ namespace CommonInfrastructure
                 .Warning(exception, templateMessage, parts);
         }
 
+
+        public static void ErrorWithEventContext(this ILogger logger,
+            string? eventIdContext,
+            Exception exception,
+            string templateMessage,
+            params object?[] parts
+        )
+        {
+            if (string.IsNullOrEmpty(eventIdContext))
+            {
+                logger.Error(exception, templateMessage, parts);
+            }
+            else
+                logger.ForContext(IncomeMessageIdEnrichName, eventIdContext)
+                    .Error(exception, templateMessage, parts);
+        }
+
         public static void Error(this ILogger logger,
             IRabbitMessage processingMessage,
             string templateMessage,
@@ -74,6 +91,7 @@ namespace CommonInfrastructure
             logger.ForContext(IncomeMessageIdEnrichName, processingMessage.SystemEventId)
                 .Error(templateMessage, parts);
         }
+
         public static void Error(this ILogger logger,
             IRabbitMessage processingMessage,
             Exception exception,
