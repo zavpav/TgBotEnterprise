@@ -21,7 +21,7 @@ namespace JenkinsService
                 .ConfigureServices((hostContext, services) =>
                 {
                     var configuration = hostContext.Configuration;
-                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
+                    ConfigurationServiceExtension.ConfigureServices<RabbitProcessor>(configuration, services,
                         EnumInfrastructureServicesType.BuildService);
 
                     services.ConfigureDatabase<JenkinsDbContext>("jenkins", configuration);

@@ -15,50 +15,18 @@ namespace JenkinsService
 {
     public class JenkinsWorker : BackgroundService
     {
+        private readonly IRabbitProcessor _rabbitProcessor;
         private readonly ILogger _logger;
-        private readonly IMapper _mapper;
-        private readonly IRabbitService _rabbitService;
-        private readonly JenkinsDbContext _dbContext;
 
-        public JenkinsWorker(ILogger logger,
-            IRabbitService rabbitService,
-            IMapper mapper,
-            JenkinsDbContext dbContext)
+        public JenkinsWorker(IRabbitProcessor rabbitProcessor, ILogger logger)
         {
+            this._rabbitProcessor = rabbitProcessor;
             this._logger = logger;
-            this._rabbitService = rabbitService;
-            this._mapper = mapper;
-            this._dbContext = dbContext;
         }
-
-        private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
-        {
-            var usrInfo = await this._dbContext.UsersInfo
-                .FirstOrDefaultAsync(x => x.BotUserId == (message.OriginalBotUserId ?? message.BotUserId));
-            if (usrInfo == null)
-            {
-                this._logger.Information(message, "User doesn't exist {@newUserMessage}", message);
-                var usr = this._mapper.Map<DtoUserInfo>(message);
-                await this._dbContext.UsersInfo.AddAsync(usr);
-                await this._dbContext.SaveChangesAsync();
-            }
-            else
-            {
-                this._logger.Information(message, "User exist {@oldUserInfo} {@newUserMessage}", usrInfo, message);
-                usrInfo = this._mapper.Map(message, usrInfo);
-                this._dbContext.UsersInfo.Update(usrInfo);
-                await this._dbContext.SaveChangesAsync();
-            }
-        }
-
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            this._rabbitService.Subscribe<MainBotUpdateUserInfo>(EnumInfrastructureServicesType.Main,
-                RabbitMessages.MainBotPublishUpdateUser,
-                this.ProcessUpdateUserInformation,
-                this._logger);
-
+            this._rabbitProcessor.Subscribe();
 
             while (!stoppingToken.IsCancellationRequested)
             {

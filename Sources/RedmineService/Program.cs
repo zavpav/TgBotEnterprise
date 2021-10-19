@@ -3,7 +3,6 @@ using Microsoft.Extensions.Hosting;
 using AutoMapper;
 using CommonInfrastructure;
 using RedmineService.Database;
-using RedmineService.RabbitCommunication;
 using Serilog;
 
 namespace RedmineService
@@ -21,7 +20,7 @@ namespace RedmineService
                 .ConfigureServices((hostContext, services) =>
                 {
                     var configuration = hostContext.Configuration;
-                    ConfigurationServiceExtension.ConfigureServices<DirectRequestProcessor>(configuration, services,
+                    ConfigurationServiceExtension.ConfigureServices<RabbitProcessor>(configuration, services,
                         EnumInfrastructureServicesType.BugTracker);
 
                     services.ConfigureDatabase<RedmineDbContext>("redmine", configuration);
