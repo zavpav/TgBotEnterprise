@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using RabbitMqInfrastructure;
 using Serilog;
+using Serilog.Core;
 using Serilog.Events;
 
 namespace CommonInfrastructure
@@ -22,7 +25,7 @@ namespace CommonInfrastructure
         public static void ConfigureServices<TDirectRequestProcessor>(IConfiguration configuration,
             IServiceCollection services,
             EnumInfrastructureServicesType servicesType)
-            where TDirectRequestProcessor : class, IDirectRequestProcessor
+            where TDirectRequestProcessor : class, IRabbitProcessor
         {
             var currentNode = configuration.GetValue<string?>(CurrentNodeName)
                               ?? servicesType.ToString();
@@ -46,7 +49,7 @@ namespace CommonInfrastructure
             services.AddTransient<Serilog.ILogger>(p => Log.Logger);
 
 
-            services.AddTransient<TDirectRequestProcessor>();
+            services.AddSingleton<IRabbitProcessor, TDirectRequestProcessor>();
 
             var rabbitHost = configuration.GetValue<string?>(RabbitMq)
                              ?? throw new NotSupportedException("Rabbit host is not definition");
@@ -55,7 +58,7 @@ namespace CommonInfrastructure
             {
                 var rabbitService = new RabbitService(nodeInfo, 
                     rabbitHost, 
-                    f.GetRequiredService<TDirectRequestProcessor>(),
+                    new Lazy<IRabbitProcessor>(f.GetRequiredService<IRabbitProcessor>),
                     f.GetRequiredService<ILogger>());
                 return rabbitService;
             });
@@ -64,7 +67,17 @@ namespace CommonInfrastructure
         public static void RunApp(IHostBuilder hostBuilder, Action<IHost>? initilizeAction = null)
         {
             var host = hostBuilder.Build();
-            host.Services.GetRequiredService<IRabbitService>().Initialize();
+            try
+            {
+                var requiredService = host.Services.GetRequiredService<IRabbitService>();
+                requiredService.Initialize();
+            }
+            catch (Exception e)
+            {
+                Log.Logger.Error(e, "Start service error");
+                Console.WriteLine(e);
+                throw;
+            }
             initilizeAction?.Invoke(host);
             host.Run();
         }
