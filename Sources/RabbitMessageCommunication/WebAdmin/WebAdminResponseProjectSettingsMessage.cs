@@ -8,12 +8,13 @@ namespace RabbitMessageCommunication.WebAdmin
     public class WebAdminResponseProjectSettingsMessage : IRabbitMessage
     {
         public WebAdminResponseProjectSettingsMessage(string systemEventId, EnumInfrastructureServicesType servicesType,
-            string nodeName, string serviceDescription)
+            string nodeName, string serviceDescription, string projectSysName)
         {
             this.SystemEventId = systemEventId;
-            this.ServiceDescription = serviceDescription;
             this.ServicesType = servicesType;
             this.NodeName = nodeName;
+            this.ServiceDescription = serviceDescription;
+            this.ProjectSysName = projectSysName;
         }
 
         /// <summary> Message Income Id - Unique id in all services </summary>
@@ -24,6 +25,9 @@ namespace RabbitMessageCommunication.WebAdmin
         
         /// <summary> Service node name </summary>
         public string NodeName { get; }
+
+        /// <summary> SysName of project </summary>
+        public string ProjectSysName { get; }
 
         /// <summary> Name of service whom this settings </summary>
         public string ServiceDescription { get; }

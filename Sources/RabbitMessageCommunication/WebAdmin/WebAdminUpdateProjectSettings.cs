@@ -6,10 +6,11 @@ namespace RabbitMessageCommunication.WebAdmin
     public class WebAdminUpdateProjectSettings : IRabbitMessage
     {
         public WebAdminUpdateProjectSettings(string systemEventId, EnumInfrastructureServicesType servicesType,
-            string nodeName, SettingsItem[] settingsItems)
+            string nodeName, string projectSysName, SettingsItem[] settingsItems)
         {
             this.SystemEventId = systemEventId;
             this.SettingsItems = settingsItems;
+            this.ProjectSysName = projectSysName;
             this.ServicesType = servicesType;
             this.NodeName = nodeName;
         }
@@ -22,6 +23,9 @@ namespace RabbitMessageCommunication.WebAdmin
 
         /// <summary> Service node name </summary>
         public string NodeName { get; }
+
+        /// <summary> SysName of project </summary>
+        public string ProjectSysName { get; }
 
         /// <summary> Settings </summary>
         public SettingsItem[] SettingsItems { get; }
