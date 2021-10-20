@@ -3,7 +3,7 @@
 title Update project settings
 
 actor User as usr
-participant WebPage as wp
+participant WebService as wp
 
 box Rabbit #LightSkyBlue 
     queue "CentralHub" as CentralHub #LightBlue

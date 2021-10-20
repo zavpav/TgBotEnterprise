@@ -85,7 +85,7 @@ After changing settings User saves information.
 8. If the service receives a message intended for another service It ignores this message.
 9. If the service receives a message intended for itself It proceses this message.
 
-I don't wait for an anwer aobut the successful competition of the update. 
+I don't wait for an anwer aobut the successful competition of the update. I have not yet figured out how to do it beautifully.
 
 ![Request needed setting from all services](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/WebAdminChangeSettingsRequest.puml)
 ![Update setting in all services](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/WebAdminChangeSettingsUpdate.puml)
