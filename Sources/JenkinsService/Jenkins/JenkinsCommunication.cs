@@ -55,6 +55,7 @@ namespace JenkinsService.Jenkins
             return prj;
         }
 
+        /// <summary> Save project settings  </summary>
         public async Task SaveProjectSettings(DtoProjectSettings projectSettings)
         {
             this._dbContext.ProjectSettings.Update(projectSettings);

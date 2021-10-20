@@ -16,7 +16,7 @@ namespace JenkinsService.Database
         /// <summary> Infomration about bot users in jenkins server </summary>
         public DbSet<DtoUserInfo> UsersInfo { get; set; }
         
-        /// <summary> Information about project settings </summary>
+        /// <summary> Information about project settings in jenkins </summary>
         public DbSet<DtoProjectSettings> ProjectSettings { get; set; }
 
         /// <summary> Information about job settings of projects </summary>
