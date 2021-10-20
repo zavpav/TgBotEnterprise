@@ -50,7 +50,7 @@ deactivate redmineQueue
 activate redmine
 jenkins -> jenkins : Save Jenkins\n settings
 deactivate jenkins
-redmine -> redmine : Skip message from another service
+redmine -> redmine : Skip message for\n another service
 deactivate redmine
 
 ... other services ...
@@ -63,7 +63,7 @@ activate redmineQueue
 jenkinsQueue -> jenkins : Consume Redmine settings message 
 deactivate jenkinsQueue
 activate jenkins
-jenkins -> jenkins : Skip message from\n another service
+jenkins -> jenkins : Skip message for\n another service
 deactivate jenkins
 redmineQueue -> redmine  : Consume Redmine settings message
 deactivate redmineQueue

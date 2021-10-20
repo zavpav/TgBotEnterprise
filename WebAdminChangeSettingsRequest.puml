@@ -1,6 +1,7 @@
-@startuml Processing user request
+@startuml Request project settings from all services
 
-title Processing user request
+title Request project settings from all services
+
 
 actor User as usr
 participant WebPage as wp
