@@ -1,0 +1,25 @@
+@startuml Sequence
+
+actor       "Telegram\nUser"    as tg_user
+participant "Telegram service" as tg_srv
+participant "Main bot"         as main_bot
+participant "Redmine service"  as redmine
+
+
+tg_user -> tg_srv : Get Current version status
+activate tg_srv
+tg_srv -> main_bot : Get Current version status
+deactivate tg_srv
+activate main_bot
+main_bot -> redmine : Get Task statuses
+activate redmine
+main_bot <-- redmine : Tasks information
+deactivate redmine
+main_bot -> main_bot : Format telegram message
+main_bot -> tg_srv : Send response to user
+deactivate main_bot
+activate tg_srv
+tg_srv -> tg_user : Telegram message
+deactivate tg_srv
+
+@enduml

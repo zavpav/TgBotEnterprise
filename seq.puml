@@ -1,0 +1,31 @@
+@startuml "Telagram message processing"
+
+partition "Telegram service" {
+    (*) --> "Telegram Message"
+    if :User exists: then
+    --> [No]  "Save Chat Id
+    Save Telegram Id,
+    Generate BotId"
+    -down-> "Send request to MainBot for Usre with BotId" as TO_MAIN_BOT
+    else
+    -->[Yes] "Update telegram information"
+    --> "Define BotId"
+    -down-> "Send request to MainBot for Usre with BotId" as TO_MAIN_BOT
+    endif
+
+
+    MainEnd -down-> "Send generated messages to User"
+    -down-> (*)
+}
+
+partition "Main Bot" {
+    TO_MAIN_BOT -right-> if "User activated" then
+    -down-> [Yes] "Generate responses"
+    -down-> "Send messages to telegram service" as MainEnd
+    else
+    -down-> [No] "Generate refuse message"
+    -down-> "Send messages to telegram service" as MainEnd
+    endif
+}
+
+@enduml

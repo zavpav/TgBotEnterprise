@@ -1,0 +1,19 @@
+@startuml
+|Swimlane1|
+start
+:OP1; 
+|Swimlane2|
+:OP2;
+ if (Form Valid?) then (No)
+|Swimlane1|
+:Modify Details;  /' <-- This should point _back_ to OP2 '/
+|Swimlane2|
+  
+  else (Yes)
+    :Add Detals to System;
+  endif
+:OP3;
+|Swimlane2|
+:foo5;
+stop
+@enduml

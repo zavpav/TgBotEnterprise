@@ -7,7 +7,7 @@ participant "Service 1"  as s1
 end box
 box Rabbit #LightSkyBlue
 queue  "Temporary queue\nfor response" as s2tem
-queue "Service 2\nQueue for sync requests" as s2q
+queue "Queue for sync requests\nof service 2" as s2q
 end box
 participant "Service 2" as s2 
 
@@ -27,7 +27,6 @@ s2tem <- s2 -- : <Publish to temporary queue>\nResponse message
 s1 <- s2tem : <Consume from temporary queue>\nResonse
 s1 -> s2tem : Destroy temporary queue
 destroy s2tem
-deactivate s2tem
 s1 -> waitTask : SetResult 
 
 @enduml

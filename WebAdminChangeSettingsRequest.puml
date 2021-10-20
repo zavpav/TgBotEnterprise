@@ -1,6 +1,6 @@
 @startuml Processing user request
 
-title Processing request about version from Authorized user
+title Processing request needed settings from all services
 
 actor User as usr
 participant WebPage as wp

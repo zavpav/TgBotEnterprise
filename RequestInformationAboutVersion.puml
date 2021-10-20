@@ -1,0 +1,26 @@
+@startuml Processing user request
+
+title Processing request about version from Authorized user
+
+actor "Authorized\nUser" as usr
+participant "Telegram\nservice" as tg
+queue "Rabbit" as rabbit #LightBlue
+participant "MainBot" as mb
+participant "Redmine\nservice" as redmine
+
+usr -> tg ++: Give me a version state
+tg -> tg ++ : Find user
+deactivate tg
+tg -> rabbit --: <<rabbit>>\nGive iformation
+== Consuming messages ==
+rabbit -> mb ++: <<rabbit>>\nGive iformation
+mb -> redmine :  <<rabbit synchronous>>\nGive information about version
+redmine --> mb : <<rabbit synchronous>>\nInformation about version
+mb -> mb : Formatting message
+mb -> rabbit -- : <<rabbit>>\nSend telegram message for BotUser
+== Consuming messages ==
+rabbit -> tg ++ : <<rabbit>>\nMessages
+tg -> tg : Define\ntelegram ChatId\nfor BotUser
+tg -> usr -- : Send messages
+
+@enduml
