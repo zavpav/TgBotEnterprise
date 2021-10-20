@@ -123,7 +123,9 @@ namespace RedmineService
             var responseProjectSettings = new WebAdminResponseProjectSettingsMessage(message.SystemEventId, 
                 this._nodeInfo.ServicesType,
                 this._nodeInfo.NodeName,
-                "Redmine settings");
+                "Redmine settings",
+                message.ProjectSysName);
+
 
             responseProjectSettings.SettingsItems = new []
             {
@@ -152,7 +154,7 @@ namespace RedmineService
         {
             if (!(message.ServicesType == this._nodeInfo.ServicesType && message.NodeName == this._nodeInfo.NodeName))
             {
-                this._logger.Information(message, "Ignore message because not mine information {@incomeMessage}", message);
+                this._logger.Information(message, "Ignore message because it's not my information {@incomeMessage}", message);
                 return Task.CompletedTask;
             }
 

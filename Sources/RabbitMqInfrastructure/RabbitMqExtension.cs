@@ -30,8 +30,16 @@ namespace RabbitMqInfrastructure
             rabbitService.Subscribe(serviceType, actionName, 
                 (message, rabbitHeaders) =>
                 {
-                    var msgData = JsonSerializer2.DeserializeRequired<T>(message, logger);
-                    return messageProcessor(msgData, rabbitHeaders);
+                    try
+                    {
+                        var msgData = JsonSerializer2.DeserializeRequired<T>(message, logger);
+                        return messageProcessor(msgData, rabbitHeaders);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.Error(message, e, "Error while processing message {actionName} Processing message {@message}", actionName, message);
+                        throw;
+                    }
                 });
         }
 
