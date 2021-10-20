@@ -1,9 +1,10 @@
 ﻿@page "/Projects/{ProjectSysName}"
 @using System.Collections.Concurrent
-@using Microsoft.Extensions.Logging
 @using RabbitMessageCommunication.WebAdmin
 @using WebAdminService.Data
 @inject ProjectSettingService ProjectSettingService
+@inject NavigationManager Navigation
+
 <h3>ProjectEdit</h3>
 
 @if (this._project == null)
@@ -32,7 +33,7 @@ else
         .OrderBy(x => x.Key)
         .Select(x => x.Value))
     {
-        <div name="@serviceSettings.SystemEventId">
+        <div name="@serviceSettings.SystemEventId" style="border: thick double #32a1ce;">
             <label id="serviceName">@serviceSettings.ServiceDescription</label>
             <table>
                 <thead>
@@ -57,7 +58,7 @@ else
             </table>
         </div>
     }
-    <button name="SaveButton" @onclick="() => SaveSettings()">Save</button>
+    <button class="btn btn-primary" name="SaveButton" @onclick="() => SaveSettings()">Save</button>
 }
 
 @code {
@@ -95,6 +96,8 @@ else
             throw new NotSupportedException("this._project != null");
 
         await this.ProjectSettingService.SaveSettings(this._project, this._settings.Values.ToList());
+        
+        this.Navigation.NavigateTo("/Projects");
     }
 
 }

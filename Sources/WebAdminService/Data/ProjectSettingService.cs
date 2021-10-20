@@ -164,7 +164,9 @@ namespace WebAdminService.Data
                 var updateServiceSettings = new WebAdminUpdateProjectSettings(this._eventIdGenerator.GetNextEventId(),
                     setting.ServicesType,
                     setting.NodeName,
+                    projectInfo.SysName,
                     updSettings);
+
                 await this._rabbitService.PublishInformation(RabbitMessages.WebAdminProjectSettingsUpdate, updateServiceSettings);
             }
         }

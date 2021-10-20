@@ -16,7 +16,6 @@ namespace WebAdminService
             CreateMap<MainBotProjectInfo, ProjectSettingService.ProjectSettingsMainInfoPresentor>();
             CreateMap<ProjectSettingService.ProjectSettingsMainInfoPresentor, MainBotProjectInfo>();
             CreateMap<WebAdminResponseProjectSettingsMessage.SettingsItem, WebAdminUpdateProjectSettings.SettingsItem>();
-
         }
     }
 }
