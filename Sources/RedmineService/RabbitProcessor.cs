@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using CommonInfrastructure;
@@ -40,8 +41,7 @@ namespace RedmineService
             this._dbContext = dbContext;
             this._eventIdGenerator = eventIdGenerator;
 
-            this._redmineService = new RedmineCommunication(logger);
-
+            this._redmineService = new RedmineCommunication(logger, dbContext);
         }
 
         private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
@@ -126,22 +126,29 @@ namespace RedmineService
                 "Redmine settings",
                 message.ProjectSysName);
 
+            var projectSettings = await this._redmineService.GetProjectSettings(message.ProjectSysName, true);
+
+            if (projectSettings == null)
+            {
+                this._logger.Error(message, "Getting project settings error projectSettings == null");
+                throw new NotSupportedException("Getting project settings error projectSettings == null");
+            }
 
             responseProjectSettings.SettingsItems = new []
             {
                 new WebAdminResponseProjectSettingsMessage.SettingsItem
                 {
-                    SystemName = "ProjectName",
+                    SystemName = nameof(projectSettings.RedmineProjectName),
                     Description = "Name of project in redmine service",
                     SettingType = "string",
-                    Value = ""
+                    Value = projectSettings.RedmineProjectName
                 },
                 new WebAdminResponseProjectSettingsMessage.SettingsItem
                 {
-                    SystemName = "SomeElse",
-                    Description = "Something",
+                    SystemName = nameof(projectSettings.VersionMask),
+                    Description = "Version submask for project",
                     SettingType = "string",
-                    Value = ""
+                    Value = projectSettings.VersionMask
                 }
             };
             this._logger.Information(responseProjectSettings, "Response project settings {@message}", responseProjectSettings);
@@ -149,18 +156,32 @@ namespace RedmineService
             await this._rabbitService.PublishInformation(RabbitMessages.WebAdminProjectSettingsResponse, responseProjectSettings);
         }
 
+        
+
         /// <summary> Update settings from WebAdmin </summary>
-        private Task ProcessProjectSettingsUpdate(WebAdminUpdateProjectSettings message, IDictionary<string, string> rabbitMessageHeaders)
+        private async Task ProcessProjectSettingsUpdate(WebAdminUpdateProjectSettings message, IDictionary<string, string> rabbitMessageHeaders)
         {
             if (!(message.ServicesType == this._nodeInfo.ServicesType && message.NodeName == this._nodeInfo.NodeName))
             {
                 this._logger.Information(message, "Ignore message because it's not my information {@incomeMessage}", message);
-                return Task.CompletedTask;
+                return;
             }
 
             this._logger.Information(message, "ProcessProjectSettingsUpdate {@message}", message);
 
-            return Task.CompletedTask;
+            var projectSettings = await this._redmineService.GetProjectSettings(message.ProjectSysName, true);
+            if (projectSettings == null)
+            {
+                this._logger.Error(message, "Getting project settings error projectSettings == null");
+                throw new NotSupportedException("Getting project settings error projectSettings == null");
+            }
+
+            projectSettings.RedmineProjectName = message.SettingsItems
+                                                     .SingleOrDefault(x => x.SystemName == nameof(projectSettings.RedmineProjectName))?.Value ?? "";
+            projectSettings.VersionMask = message.SettingsItems
+                                              .SingleOrDefault(x => x.SystemName == nameof(projectSettings.VersionMask))?.Value ?? "";
+
+            await this._redmineService.SaveProjectSettings(projectSettings);
         }
     }
 }

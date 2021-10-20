@@ -6,6 +6,8 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using CommonInfrastructure;
+using Microsoft.EntityFrameworkCore;
+using RedmineService.Database;
 using Serilog;
 
 namespace RedmineService.Redmine
@@ -14,34 +16,13 @@ namespace RedmineService.Redmine
     public class RedmineCommunication
     {
         private readonly ILogger _logger;
+        private readonly RedmineDbContext _dbContext;
         private HttpExtension.AuthInformation? _credential;
 
-        public RedmineCommunication(ILogger logger)
+        public RedmineCommunication(ILogger logger, RedmineDbContext dbContext)
         {
             this._logger = logger;
-        }
-
-        private Task AddCredential(WebRequest request)
-        {
-            if (this._credential == null)
-                return Task.CompletedTask;
-
-            request.UpdateCredential(this._credential);
-
-            return Task.CompletedTask;
-        }
-
-        private async Task UpdateCredential()
-        {
-            try
-            {
-                var jsonString = await (new System.IO.StreamReader("Secretic/Password.json", Encoding.UTF8).ReadToEndAsync());
-                var authInfo = JsonSerializer2.DeserializeRequired<HttpExtension.AuthInformation>(jsonString, this._logger);
-                this._credential = authInfo;
-            }
-            catch (System.IO.FileNotFoundException)
-            {
-            }
+            this._dbContext = dbContext;
         }
 
         /// <summary> Execute query. Add main url part. Configure credintals and etc </summary>
@@ -88,5 +69,52 @@ namespace RedmineService.Redmine
         {
             return await this.ExecuteRequest("issues.xml?status_id=*&sort=updated_on:desc&limit=100");
         }
+
+
+        /// <summary> Get project settings </summary>
+        /// <param name="projectSysName">Project name</param>
+        /// <param name="isFullSettings">if true - fill full job list. if project settings doesn't exist - create stub for it and fill with default values</param>
+        public async Task<DtoProjectSettings?> GetProjectSettings(string projectSysName, bool isFullSettings)
+        {
+            var prj = await this._dbContext.ProjectSettings.SingleOrDefaultAsync(x => x.ProjectSysName == projectSysName);
+            
+            if (prj == null && isFullSettings)
+                prj = new DtoProjectSettings(projectSysName);
+
+            return prj;
+        }
+
+        /// <summary> Save project settings  </summary>
+        public async Task SaveProjectSettings(DtoProjectSettings projectSettings)
+        {
+            this._dbContext.ProjectSettings.Update(projectSettings);
+            await this._dbContext.SaveChangesAsync();
+        }
+
+
+        private Task AddCredential(WebRequest request)
+        {
+            if (this._credential == null)
+                return Task.CompletedTask;
+
+            request.UpdateCredential(this._credential);
+
+            return Task.CompletedTask;
+        }
+
+        private async Task UpdateCredential()
+        {
+            try
+            {
+                var jsonString = await (new System.IO.StreamReader("Secretic/Password.json", Encoding.UTF8).ReadToEndAsync());
+                var authInfo = JsonSerializer2.DeserializeRequired<HttpExtension.AuthInformation>(jsonString, this._logger);
+                this._credential = authInfo;
+            }
+            catch (System.IO.FileNotFoundException)
+            {
+            }
+        }
+
+
     }
 }
