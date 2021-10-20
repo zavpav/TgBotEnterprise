@@ -1,6 +1,6 @@
 @startuml Processing user request
 
-title Processing request needed settings from all services
+title Processing user request
 
 actor User as usr
 participant WebPage as wp
