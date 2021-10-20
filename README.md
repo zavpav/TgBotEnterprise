@@ -86,7 +86,9 @@ After changing settings User saves information.
 9. If the service receives a message intended for itself It proceses this message.
 
 
-![Executing synchronous request throught RabbitMQ](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/WebAdminChangeSettings.puml)
+![Request needed setting from all services](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/WebAdminChangeSettingsRequest.puml)
+![Update setting in all services](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/WebAdminChangeSettingsUpdate.puml)
+
 
 # [Underconstraction]
 
