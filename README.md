@@ -40,9 +40,17 @@ Other nodes:
 
 As a logger server I choose **Seq**. It's a simple but very useful server. I put logs into Seq via Serilog.
 
+### Messages producers
+
+Who are generated messages in system?
+
+
+
+
+
 
 ## Communications between services
-_Assynchronous communications_ - standart messaging throught rabbit. Publish message to "Hub".
+_Asynchronous communications_ - standart messaging throught rabbit. Publish message to "CantralHub".
 
 _Synchronous communications_ - emulation of synchronous execution. I need it for forming webpages and so on.
 - Service 1
@@ -60,6 +68,25 @@ _Synchronous communications_ - emulation of synchronous execution. I need it for
     - "await" relese processing
 
 ![Executing synchronous request throught RabbitMQ](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/RabbitSynchronousRequest.puml)
+
+
+## Change project settings for all services
+Сhanging settings for all services occurs using the web page. 
+1. Web service syncronuosly gets main information about project from mainbot service. 
+2. Web service publishes to central hub request about needed settings infromation for all services and memorize eventId.
+3. Web service sends blazor-page with main information about project to user.
+4. If the service needs some settings for correct working It pulishes needed infromation with income eventId.
+5. Web service consumes "settings messages", regenerates web page for user and sends web page to user through SignalR.
+
+After changing settings User saves information.
+
+6. Because I don't want to extract information from messages for "smart publishing information", I publish all information to CentralHub. 
+7. CentralHub sends these messages to each service. 
+8. If the service receives a message intended for another service It ignores this message.
+9. If the service receives a message intended for itself It proceses this message.
+
+
+![Executing synchronous request throught RabbitMQ](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/zavpav/TgBotEnterprise/main/WebAdminChangeSettings.puml)
 
 # [Underconstraction]
 

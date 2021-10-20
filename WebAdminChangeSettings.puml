@@ -1,0 +1,134 @@
+@startuml Processing user request
+
+title Processing request about version from Authorized user
+
+actor User as usr
+participant WebPage as wp
+
+box Rabbit #LightSkyBlue 
+    queue "CentralHub" as CentralHub #LightBlue
+    queue "MainBot\nqueue" as mbQueue #BlueViolet
+    queue "Jenkins\nqueue" as jenkinsQueue #BlueViolet
+    queue "Redmine\nqueue" as redmineQueue #BlueViolet
+end box
+
+participant "MainBot\nservice" as mb
+participant "Jenkins\nservice" as jenkins
+participant "Redmine\nservice" as redmine
+
+
+usr -> wp : Edit\nsingle project\nsettings page
+activate wp
+wp -> mbQueue : Direct request\nproject information
+mbQueue -> mb  : Consume message
+mb --> mbQueue : Main information about project
+mbQueue --> wp : Main information\nabout project
+
+wp -> CentralHub : Request any settings
+activate CentralHub
+
+wp --> usr : [WebPage] \n Main project information
+deactivate wp
+
+CentralHub -> jenkinsQueue : Publish requested infromation
+activate jenkinsQueue
+CentralHub -> redmineQueue : Publish requested infromation
+deactivate CentralHub
+
+activate redmineQueue
+...
+jenkinsQueue -> jenkins : Consume request\nproject settings message 
+activate jenkins
+deactivate jenkinsQueue
+redmineQueue -> redmine : Consume request\nproject settings message 
+activate redmine
+deactivate redmineQueue
+...
+jenkins -> jenkins : Load or generate\n jenkins settings \n for project
+jenkins -> CentralHub : Project settings\nfor jenkins service
+deactivate jenkins
+activate CentralHub
+...
+CentralHub -> wp : Consume settings message
+deactivate CentralHub
+activate wp
+wp -> wp : Change webpage data
+wp -> wp : [Blazor tree]
+wp --> usr : [UpdatedWebPage via SignalR] \n Main project information\n + Jenkins settings for project
+deactivate wp
+
+... other services ...
+hnote across #LightSteelBlue: Other services are handled in the same way 
+redmine -> redmine : Load or generate\n redmine settings \n for project
+redmine -> CentralHub : Project settings\nfor redmine service
+deactivate redmine
+activate CentralHub
+...
+CentralHub -> wp : Consume settings message
+deactivate CentralHub
+activate wp
+wp -> wp : Change webpage data
+wp -> wp : [Blazor tree]
+wp --> usr : [UpdatedWebPage via SignalR] \n Main project information\n + Jenkins settings for project\n + Redmine settings for project
+deactivate wp
+
+== End of generating project settings page == 
+
+...
+note over usr, wp : \n <size:22>**User change settings**</size> \n
+...
+
+usr -> wp : Save settings
+activate wp
+wp -> wp : Generate changes\n of main information\n for project
+wp -> CentralHub : Main settings message
+activate CentralHub
+CentralHub -> mbQueue : Publish main settins
+activate mbQueue
+mbQueue -> mb : Consume main settings
+activate mb
+deactivate mbQueue
+mb -> mb: Save settings
+deactivate mb
+
+
+
+wp -> wp : Generate change settings messages\n [for each services]
+wp -> CentralHub : Send message for service Jenkins [service 1]
+CentralHub -> jenkinsQueue : Send message for service Jenkins
+activate jenkinsQueue
+jenkinsQueue -> jenkins : Consume Jenkins settings message 
+activate jenkins
+deactivate jenkinsQueue
+CentralHub -> redmineQueue : Send message for service Jenkins
+deactivate CentralHub
+activate redmineQueue
+redmineQueue -> redmine  : Consume Jenkins settings message
+deactivate redmineQueue
+activate redmine
+jenkins -> jenkins : Save Jenkins\n settings
+deactivate jenkins
+redmine -> redmine : Skip message from another service
+deactivate redmine
+
+... other services ...
+hnote across #LightSteelBlue: Other services are handled in the same way 
+CentralHub -> jenkinsQueue : Send message for service Redmine
+activate jenkinsQueue
+CentralHub -> redmineQueue : Send message for service Redmine
+deactivate CentralHub
+activate redmineQueue
+jenkinsQueue -> jenkins : Consume Redmine settings message 
+deactivate jenkinsQueue
+activate jenkins
+jenkins -> jenkins : Skip message from\n another service
+deactivate jenkins
+redmineQueue -> redmine  : Consume Redmine settings message
+deactivate redmineQueue
+activate redmine
+redmine -> redmine : Save Redmine\n settings
+deactivate redmine
+
+== End of updating project settings at all services == 
+
+@enduml
