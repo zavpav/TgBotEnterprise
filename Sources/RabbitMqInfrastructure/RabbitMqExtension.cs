@@ -62,8 +62,43 @@ namespace RabbitMqInfrastructure
         where TI : IRabbitMessage
         where TO : IRabbitMessage
         {
-            var jsonMessage = JsonSerializer.Serialize(messageData);
-            var responseStr = await rabbitService.DirectRequest(EnumInfrastructureServicesType.Main, actionName, jsonMessage, messageData.SystemEventId);
+            return await rabbitService.DirectRequestTo<TI, TO>(EnumInfrastructureServicesType.Main, actionName, messageData);
+        }
+
+        /// <summary> Direct request for another service </summary>
+        /// <typeparam name="TI">Request message type</typeparam>
+        /// <typeparam name="TO">Response message type</typeparam>
+        /// <param name="rabbitService">Rabbit service</param>
+        /// <param name="serviceType">Service type</param>
+        /// <param name="actionName">Method name</param>
+        /// <param name="message">Message</param>
+        public static async Task<TO> DirectRequestTo<TI, TO>(this IRabbitService rabbitService, 
+                EnumInfrastructureServicesType serviceType,
+                string actionName, 
+                TI message)
+            where TI : IRabbitMessage
+            where TO : IRabbitMessage
+        {
+            var jsonMessage = JsonSerializer.Serialize(message);
+            var responseStr = await rabbitService.DirectRequest(serviceType, actionName, jsonMessage, message.SystemEventId);
+            var response = JsonSerializer.Deserialize<TO>(responseStr);
+            return response ?? throw new NotSupportedException("Empty response or deserialization problem");
+        }
+
+        /// <summary> Direct request for another service </summary>
+        /// <typeparam name="TO">Response message type</typeparam>
+        /// <param name="rabbitService">Rabbit service</param>
+        /// <param name="serviceType">Service type</param>
+        /// <param name="actionName">Method name</param>
+        /// <param name="message">Message</param>
+        public static async Task<TO> DirectRequestTo<TO>(this IRabbitService rabbitService,
+            EnumInfrastructureServicesType serviceType,
+            string actionName,
+            IRabbitMessage message)
+            where TO : IRabbitMessage
+        {
+            var jsonMessage = JsonSerializer.Serialize(message);
+            var responseStr = await rabbitService.DirectRequest(serviceType, actionName, jsonMessage, message.SystemEventId);
             var response = JsonSerializer.Deserialize<TO>(responseStr);
             return response ?? throw new NotSupportedException("Empty response or deserialization problem");
         }
