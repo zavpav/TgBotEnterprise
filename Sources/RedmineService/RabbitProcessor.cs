@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using AutoMapper;
 using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
+using RabbitMessageCommunication.BugTracker;
 using RabbitMessageCommunication.MainBot;
 using RabbitMessageCommunication.WebAdmin;
 using RabbitMqInfrastructure;
@@ -94,6 +96,20 @@ namespace RedmineService
 
                 }
             }
+            else if (actionName == RabbitMessages.BugTrackerRequestIssues)
+            {
+                var requestMessage = JsonSerializer2.DeserializeRequired<BugTrackerTasksRequestMessage>(directMessage, this._logger);
+
+                var responseMessage = new BugTrackerTasksResponseMessage(requestMessage.SystemEventId);
+                
+                var foundIssues = await this._redmineService.SimpleFindIssues(requestMessage.FilterUserBotId,
+                    requestMessage.FilterProjectSysName, requestMessage.FilterVersionText);
+                
+                responseMessage.Issues = this._mapper.Map<BugTrackerTasksResponseMessage.BugTrackerIssue[]>(foundIssues);
+                
+                return JsonSerializer.Serialize(responseMessage);
+            }
+
 
             return "Response for " + directMessage;
         }

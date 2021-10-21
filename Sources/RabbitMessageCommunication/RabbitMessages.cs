@@ -53,5 +53,12 @@ namespace RabbitMessageCommunication
 
         #endregion
 
+        #region BugTracker
+
+        /// <summary> Request issues from BugTracker </summary>
+        public const string BugTrackerRequestIssues = "BugTrackerRequestIssues";
+
+        #endregion
+
     }
 }

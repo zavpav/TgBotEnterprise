@@ -41,8 +41,8 @@ namespace MainBotService.RabbitCommunication
             this._mapper = mapper;
             this._dbContext = dbContext;
 
-            this._telegramProcessor = new TelegramProcessor(this);
-            this._redmineProcessor = new RedmineProcessor(this);
+            this._telegramProcessor = new TelegramProcessor(this, this._logger);
+            this._redmineProcessor = new RedmineProcessor(this, this._logger);
         }
 
 

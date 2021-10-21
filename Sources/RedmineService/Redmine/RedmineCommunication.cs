@@ -116,5 +116,38 @@ namespace RedmineService.Redmine
         }
 
 
+        public async Task<RedmineIssue[]> SimpleFindIssues(string? userBotId, string? projectSysName, string? versionText)
+        {
+            await Task.Yield();
+            return new RedmineIssue[]
+            {
+                new RedmineIssue
+                {
+                    Num = "12",
+                    AssignOn = "Пфафа",
+                    CreatorName = "фывафыва",
+                    Description = "Вуыск ",
+                    ProjectName = "АСУБС",
+                    ProjectSysName = "Fbpf",
+                    Resolution = "нене ",
+                    Status = "Черновик",
+                    Subject = "Subs",
+                    Version = "100"
+                },
+                new RedmineIssue
+                {
+                    Num = "123",
+                    AssignOn = "Пфаф23fа",
+                    CreatorName = "фываf23фыва",
+                    Description = "Вуf323fыск ",
+                    ProjectName = "АСУБС",
+                    ProjectSysName = "Fbpf",
+                    Resolution = "н23f32fене ",
+                    Status = "Черновик",
+                    Subject = "Su2f3f2323fbs",
+                    Version = "101"
+                },
+            };
+        }
     }
 }

@@ -1,7 +1,12 @@
 ﻿using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
+using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
+using RabbitMessageCommunication.BugTracker;
+using RabbitMqInfrastructure;
+using Serilog;
 
 namespace MainBotService.RabbitCommunication
 {
@@ -11,10 +16,15 @@ namespace MainBotService.RabbitCommunication
         public class TelegramProcessor
         {
             private readonly MainBotService _owner;
+            private readonly ILogger _logger;
 
-            public TelegramProcessor(MainBotService owner)
+            /// <summary> Cache for response waters </summary>
+            private readonly System.Runtime.Caching.MemoryCache _waitResponseCache = new System.Runtime.Caching.MemoryCache("responseWaiter");
+
+            public TelegramProcessor(MainBotService owner, ILogger logger)
             {
                 this._owner = owner;
+                this._logger = logger;
             }
 
             public async Task<List<TelegramOutgoingMessage>> ProcessIncomeMessage(TelegramIncomeMessage incomeMessage)
@@ -40,18 +50,29 @@ namespace MainBotService.RabbitCommunication
 
 
 
-                if (incomeMessage.MessageText.ToUpper() == "МОИ ЗАДАЧИ")
+                if (incomeMessage.MessageText.ToUpper() == "МОИ ЗАДАЧИ" || incomeMessage.MessageText.ToUpper() == "MY TASKS")
                 {
+                    this._logger.Information(incomeMessage, "Processing 'MY TASKS' message");
+                    var requestMessage = new BugTrackerTasksRequestMessage(incomeMessage.SystemEventId)
+                    {
+                        FilterUserBotId = incomeMessage.BotUserId
+                    }; 
+
+                    var responseMessage = await this._owner._rabbitService.DirectRequestTo<BugTrackerTasksResponseMessage>(
+                        EnumInfrastructureServicesType.BugTracker,
+                        RabbitMessages.BugTrackerRequestIssues,
+                        requestMessage
+                        );
+
                     return new List<TelegramOutgoingMessage>
                     {
                         new TelegramOutgoingMessage
                         {
                             SystemEventId = incomeMessage.SystemEventId,
-                            Message = "Ща соберём " + incomeMessage.MessageText,
+                            Message = "Ща соберём " + JsonSerializer.Serialize(responseMessage),
                             ChatId = incomeMessage.ChatId
                         }
                     };
-
                 }
 
 
