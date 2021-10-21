@@ -2,6 +2,7 @@ using System;
 using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Threading.Tasks;
+using RabbitMqInfrastructure;
 using Serilog;
 using TelegramService.Telegram;
 
@@ -11,15 +12,19 @@ namespace TelegramService
     {
         private readonly ILogger _logger;
         private readonly ITelegramWrap _telegramWrap;
+        private readonly IRabbitProcessor _rabbitProcessor;
 
-        public TgWorker(ILogger logger, ITelegramWrap telegramWrap)
+        public TgWorker(ILogger logger, IRabbitProcessor rabbitProcessor, ITelegramWrap telegramWrap)
         {
             this._logger = logger;
+            this._rabbitProcessor = rabbitProcessor;
             this._telegramWrap = telegramWrap;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            this._rabbitProcessor.Subscribe();
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
