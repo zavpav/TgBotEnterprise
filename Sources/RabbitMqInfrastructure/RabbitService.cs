@@ -157,8 +157,10 @@ namespace RabbitMqInfrastructure
         /// <param name="actionName">Method name</param>
         /// <param name="message">Message</param>
         /// <param name="eventId">Unique event id</param>
-        public Task<string> DirectRequest(EnumInfrastructureServicesType serviceType, string actionName, string message, string? eventId = null)
+        public async Task<string> DirectRequest(EnumInfrastructureServicesType serviceType, string actionName, string message, string? eventId = null)
         {
+            await Task.Yield();
+
             var responseQueueName = $"{RequestPrefixes.Response}.{this._nodeInfo.NodeName}.{Guid.NewGuid()}";
 
             var headers = new Dictionary<string, object>
@@ -176,42 +178,42 @@ namespace RabbitMqInfrastructure
 
             this.DirectRequest(message, responseQueueName, headers);
 
-            return responseTask;
+            return await responseTask;
         }
 
         /// <summary> Generate "Task" for waiting response </summary>
-        private Task<string> ResponseTaskSource(string responseQueueName, string? eventId = null)
+        private async Task<string> ResponseTaskSource(string responseQueueName, string? eventId = null)
         {
-            var channel = this.Channel();
+            await Task.Yield();
 
+            using var channel = this.Connection().CreateModel();//this.Channel();
             var tcsResponse = new TaskCompletionSource<string>();
             var responseQueue = channel.QueueDeclare(responseQueueName,
                 durable: false,
                 exclusive: true,
-                autoDelete: true,
-                arguments: null);
+                autoDelete: true);
 
             var responseConsumer = new AsyncEventingBasicConsumer(channel);
-            responseConsumer.Received += (s, e) =>
+            responseConsumer.Received += async (s, e) =>
             {
+                await Task.Yield();
                 var responseMessage = Encoding.UTF8.GetString(e.Body.ToArray());
                 this._logger.InformationWithEventContext(eventId, "Response task {response}", responseMessage);
-                channel.QueueDelete(responseQueueName);
                 tcsResponse.SetResult(responseMessage);
-                return Task.CompletedTask;
             };
 
             channel.BasicConsume(queue: responseQueue.QueueName,
                 autoAck: true,
                 consumer: responseConsumer);
 
-
-            return ResponseTaskSourceWait(tcsResponse, channel, responseQueue.QueueName);
+            return await ResponseTaskSourceWait(tcsResponse, channel, responseQueue.QueueName);
         }
 
         private async Task<string> ResponseTaskSourceWait(TaskCompletionSource<string> tcsResponse,
             IModel channel, string responseQueueName)
         {
+            await Task.Yield();
+
             using (var timeoutCancellationTokenSource = new CancellationTokenSource())
             {
                 var completedTask = await Task.WhenAny(tcsResponse.Task, Task.Delay(TimeSpan.FromSeconds(DirectRequestTimeoutSec), timeoutCancellationTokenSource.Token));
@@ -222,8 +224,9 @@ namespace RabbitMqInfrastructure
                 }
                 else
                 {
-                    channel.QueueDelete(responseQueueName);
-                    throw new TimeoutException("The operation has timed out.");
+                    var timeoutException = new TimeoutException("The operation has timed out.");
+                    tcsResponse.SetException(timeoutException);
+                    throw timeoutException;
                 }
             }
         }
