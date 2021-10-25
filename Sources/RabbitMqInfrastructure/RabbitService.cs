@@ -161,7 +161,7 @@ namespace RabbitMqInfrastructure
         {
             await Task.Yield();
 
-            var responseQueueName = $"{RequestPrefixes.Response}.{this._nodeInfo.NodeName}.{Guid.NewGuid()}";
+            var responseQueueName = $"{RequestPrefixes.Response}.{this._nodeInfo.NodeName}.{serviceType}.{Guid.NewGuid()}";
 
             var headers = new Dictionary<string, object>
             {
@@ -174,23 +174,23 @@ namespace RabbitMqInfrastructure
                 headers.Add(SystemEventIdHeaderName, eventId);
 
             this._logger.InformationWithEventContext(eventId, "DirectRequest {rawMessage} {@headers}", message, headers);
-            var responseTask = this.ResponseTaskSource(responseQueueName, eventId);
+            using var channel = this.Connection().CreateModel();//channel for each tread
 
-            this.DirectRequest(message, responseQueueName, headers);
+            var responseTask = this.ResponseTaskSource(responseQueueName, channel, eventId);
+
+            this.DirectRequestInternal(message, responseQueueName, headers, channel);
 
             return await responseTask;
         }
 
         /// <summary> Generate "Task" for waiting response </summary>
-        private async Task<string> ResponseTaskSource(string responseQueueName, string? eventId = null)
+        // Can't be async!
+        private Task<string> ResponseTaskSource(string responseQueueName, IModel channel, string? eventId = null)
         {
-            await Task.Yield();
-
-            using var channel = this.Connection().CreateModel();//this.Channel();
             var tcsResponse = new TaskCompletionSource<string>();
             var responseQueue = channel.QueueDeclare(responseQueueName,
                 durable: false,
-                exclusive: true,
+                exclusive: false,
                 autoDelete: true);
 
             var responseConsumer = new AsyncEventingBasicConsumer(channel);
@@ -206,28 +206,33 @@ namespace RabbitMqInfrastructure
                 autoAck: true,
                 consumer: responseConsumer);
 
-            return await ResponseTaskSourceWait(tcsResponse, channel, responseQueue.QueueName);
+            try
+            {
+                return ResponseTaskSourceWait(tcsResponse);
+            }
+            catch (Exception e)
+            {
+                this._logger.ErrorWithEventContext(eventId, e, "DirectRequest exception");
+                Console.WriteLine(e);
+                throw;
+            }
         }
 
-        private async Task<string> ResponseTaskSourceWait(TaskCompletionSource<string> tcsResponse,
-            IModel channel, string responseQueueName)
+        private async Task<string> ResponseTaskSourceWait(TaskCompletionSource<string> tcsResponse)
         {
-            await Task.Yield();
+            using var timeoutCancellationTokenSource = new CancellationTokenSource();
 
-            using (var timeoutCancellationTokenSource = new CancellationTokenSource())
+            var completedTask = await Task.WhenAny(tcsResponse.Task, Task.Delay(TimeSpan.FromSeconds(DirectRequestTimeoutSec), timeoutCancellationTokenSource.Token));
+            if (completedTask == tcsResponse.Task)
             {
-                var completedTask = await Task.WhenAny(tcsResponse.Task, Task.Delay(TimeSpan.FromSeconds(DirectRequestTimeoutSec), timeoutCancellationTokenSource.Token));
-                if (completedTask == tcsResponse.Task)
-                {
-                    timeoutCancellationTokenSource.Cancel();
-                    return await tcsResponse.Task;  
-                }
-                else
-                {
-                    var timeoutException = new TimeoutException("The operation has timed out.");
-                    tcsResponse.SetException(timeoutException);
-                    throw timeoutException;
-                }
+                timeoutCancellationTokenSource.Cancel();
+                return await tcsResponse.Task;  
+            }
+            else
+            {
+                var timeoutException = new TimeoutException("The operation has timed out.");
+                tcsResponse.SetException(timeoutException);
+                throw timeoutException;
             }
         }
 
@@ -323,10 +328,9 @@ namespace RabbitMqInfrastructure
         /// <param name="message">Message</param>
         /// <param name="responseQueueName">Queue name for response</param>
         /// <param name="requestHeaders">Information for find other service and execute request</param>
-        private void DirectRequest(string message, string responseQueueName, Dictionary<string, object> requestHeaders)
+        /// <param name="channel">Channel for the temporary response queue</param>
+        private void DirectRequestInternal(string message, string responseQueueName, Dictionary<string, object> requestHeaders, IModel channel)
         {
-            var channel = this.Channel();
-
             var requestBody = Encoding.UTF8.GetBytes(message);
 
             var basicProperties = channel.CreateBasicProperties();
