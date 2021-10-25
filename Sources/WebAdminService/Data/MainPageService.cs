@@ -22,10 +22,11 @@ namespace WebAdminService.Data
         {
             var sw = Stopwatch.StartNew();
             var tasks = new List<Tuple<EnumInfrastructureServicesType, Task<string>>>();
-            
+
+            var eventId = this._eventIdGenerator.GetNextEventId();
             foreach (var servicesType in Enum.GetValues<EnumInfrastructureServicesType>())
             {
-                tasks.Add(Tuple.Create(servicesType, this._rabbitService.DirectRequest(servicesType, "ping", "ping")));
+                tasks.Add(Tuple.Create(servicesType, this._rabbitService.DirectRequest(servicesType, "ping", "ping", eventId)));
             }
             
             var result = new List<ActualServicesInfo>();
