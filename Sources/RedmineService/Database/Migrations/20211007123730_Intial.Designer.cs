@@ -20,7 +20,7 @@ namespace RedmineService.Database.Migrations
                 .HasAnnotation("ProductVersion", "5.0.10")
                 .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
-            modelBuilder.Entity("RedmineService.Database.DtoUserInfo", b =>
+            modelBuilder.Entity("RedmineService.Database.DbeUserInfo", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

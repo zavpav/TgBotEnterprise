@@ -80,10 +80,10 @@ namespace MainBotService.RabbitCommunication
 
 
                 
-                DtoProject[] allProjects = new DtoProject[]
+                DbeProject[] allProjects = new DbeProject[]
                 {
-                    new DtoProject("Fbpf", "АСУБС"){CurrentVersion = "100"},
-                    new DtoProject("Fsf", "АСУД"),
+                    new DbeProject("Fbpf", "АСУБС"){CurrentVersion = "100"},
+                    new DbeProject("Fsf", "АСУД"),
                 };
                 if (requestProjectsMessage.ProjectSysName != null)
                 {
@@ -166,7 +166,7 @@ namespace MainBotService.RabbitCommunication
             var userExists = this._dbContext.UsersInfo.Any(x => x.BotUserId == botUserId);
             if (!userExists)
             {
-                var userInfo = new DtoUserInfo { BotUserId = botUserId, WhoIsThis = botUserId };
+                var userInfo = new DbeUserInfo { BotUserId = botUserId, WhoIsThis = botUserId };
                 this._dbContext.UsersInfo.Add(userInfo);
                 await this._dbContext.SaveChangesAsync();
             }
@@ -188,7 +188,7 @@ namespace MainBotService.RabbitCommunication
                     }
                     else
                     {
-                        usr = new DtoUserInfo
+                        usr = new DbeUserInfo
                         {
                             BotUserId = newUserInfo.BotUserId,
                             WhoIsThis = newUserInfo.WhoIsThis
@@ -210,7 +210,7 @@ namespace MainBotService.RabbitCommunication
                 usr =>
                 {
                     if (usr == null)
-                        usr = new DtoUserInfo();
+                        usr = new DbeUserInfo();
 
                     usr = this._mapper.Map(newUserInfo, usr);
 
@@ -220,7 +220,7 @@ namespace MainBotService.RabbitCommunication
         }
 
         /// <summary> Process user information </summary>
-        private async Task ProcessUpdateUser(string findBotId, string eventId, Func<DtoUserInfo?, DtoUserInfo> updateFunc)
+        private async Task ProcessUpdateUser(string findBotId, string eventId, Func<DbeUserInfo?, DbeUserInfo> updateFunc)
         {
             var user = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.BotUserId == findBotId);
             if (user != null) // Maybe exists, if telegram message process first

@@ -7,18 +7,18 @@ using CommonInfrastructure;
 namespace JenkinsService.Database
 {
     /// <summary> Project settings in Jenkins service </summary>
-    public class DtoProjectSettings
+    public class DbeProjectSettings
     {
         // ReSharper disable once UnusedMember.Local
-        private DtoProjectSettings() { }
+        private DbeProjectSettings() { }
 
-        public DtoProjectSettings(string projectSysName)
+        public DbeProjectSettings(string projectSysName)
         {
             this.ProjectSysName = projectSysName;
             this.JobInformations = new List<JobDescription>();
         }
 
-        public DtoProjectSettings(string projectSysName, List<JobDescription> jobNames)
+        public DbeProjectSettings(string projectSysName, List<JobDescription> jobNames)
             : this(projectSysName)
         {
             this.JobInformations = jobNames.ToList();
@@ -46,7 +46,7 @@ namespace JenkinsService.Database
 
             /// <summary> Synthetic ParentId </summary>
             [Required]
-            public DtoProjectSettings? Parent { get; set; }
+            public DbeProjectSettings? Parent { get; set; }
 
             /// <summary> Type of jobs </summary>
             public EnumBuildServerJobs JobType { get; set; }

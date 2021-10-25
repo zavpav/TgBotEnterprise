@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace RedmineService.Database
+namespace MainBotService.Database
 {
-    public class DtoUserInfo
+    public class DbeUserInfo
     {
         /// <summary> Synthetic ID </summary>
         [Required]
@@ -18,7 +18,12 @@ namespace RedmineService.Database
         /// <summary> Self-presentation </summary>
         public string? WhoIsThis { get; set; }
 
-        /// <summary> Redmine name </summary>
-        public string? RedmineName { get; set; }
+
+
+        /// <summary> Jenkins name </summary>
+        public string? JenkinsUserName { get; set; }
+
+        /// <summary> Redmine full name </summary>
+        public string? RedmineUserName { get; set; }
     }
 }

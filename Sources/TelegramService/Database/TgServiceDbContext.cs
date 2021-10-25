@@ -10,7 +10,7 @@ namespace TelegramService.Database
         }
 
 #nullable disable
-        public DbSet<DtoUserInfo> UsersInfo { get; set; }
+        public DbSet<DbeUserInfo> UsersInfo { get; set; }
 #nullable restore
     }
 }

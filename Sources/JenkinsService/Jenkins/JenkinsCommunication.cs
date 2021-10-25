@@ -30,21 +30,21 @@ namespace JenkinsService.Jenkins
         /// <summary> Get project settings </summary>
         /// <param name="projectSysName">Project name</param>
         /// <param name="isFullSettings">if true - fill full job list. if project settings doesn't exist - create stub for it and fill with default values</param>
-        public async Task<DtoProjectSettings?> GetProjectSettings(string projectSysName, bool isFullSettings)
+        public async Task<DbeProjectSettings?> GetProjectSettings(string projectSysName, bool isFullSettings)
         {
             var prj = await this._dbContext.ProjectSettings
                 .Include(x => x.JobInformations)
                 .SingleOrDefaultAsync(x => x.ProjectSysName == projectSysName);
             
             if (prj == null && isFullSettings)
-                prj = new DtoProjectSettings(projectSysName);
+                prj = new DbeProjectSettings(projectSysName);
 
             if (prj != null && isFullSettings)
             {
                 Enum.GetValues<EnumBuildServerJobs>()
                     .Where(x => x != EnumBuildServerJobs.Undef)
                     .Where(x => prj.JobInformations.All(xx => xx.JobType != x))
-                    .Select(x => new DtoProjectSettings.JobDescription
+                    .Select(x => new DbeProjectSettings.JobDescription
                     {
                         JobType = x,
                         JobPath = ""
@@ -56,7 +56,7 @@ namespace JenkinsService.Jenkins
         }
 
         /// <summary> Save project settings  </summary>
-        public async Task SaveProjectSettings(DtoProjectSettings projectSettings)
+        public async Task SaveProjectSettings(DbeProjectSettings projectSettings)
         {
             this._dbContext.ProjectSettings.Update(projectSettings);
             await this._dbContext.SaveChangesAsync();

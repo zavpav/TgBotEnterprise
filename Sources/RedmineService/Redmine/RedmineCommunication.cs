@@ -74,18 +74,18 @@ namespace RedmineService.Redmine
         /// <summary> Get project settings </summary>
         /// <param name="projectSysName">Project name</param>
         /// <param name="isFullSettings">if true - fill full job list. if project settings doesn't exist - create stub for it and fill with default values</param>
-        public async Task<DtoProjectSettings?> GetProjectSettings(string projectSysName, bool isFullSettings)
+        public async Task<DbeProjectSettings?> GetProjectSettings(string projectSysName, bool isFullSettings)
         {
             var prj = await this._dbContext.ProjectSettings.SingleOrDefaultAsync(x => x.ProjectSysName == projectSysName);
             
             if (prj == null && isFullSettings)
-                prj = new DtoProjectSettings(projectSysName);
+                prj = new DbeProjectSettings(projectSysName);
 
             return prj;
         }
 
         /// <summary> Save project settings  </summary>
-        public async Task SaveProjectSettings(DtoProjectSettings projectSettings)
+        public async Task SaveProjectSettings(DbeProjectSettings projectSettings)
         {
             this._dbContext.ProjectSettings.Update(projectSettings);
             await this._dbContext.SaveChangesAsync();

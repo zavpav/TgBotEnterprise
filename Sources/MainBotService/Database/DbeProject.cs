@@ -3,9 +3,9 @@
 namespace MainBotService.Database
 {
     /// <summary> Describe project </summary>
-    public class DtoProject
+    public class DbeProject
     {
-        public DtoProject(string sysName, string description)
+        public DbeProject(string sysName, string description)
         {
             this.SysName = sysName;
             this.Description = description;

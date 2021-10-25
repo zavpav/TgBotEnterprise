@@ -1,9 +1,8 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
-namespace JenkinsService.Database
+namespace RedmineService.Database
 {
-    public class DtoUserInfo
+    public class DbeUserInfo
     {
         /// <summary> Synthetic ID </summary>
         [Required]
@@ -19,9 +18,7 @@ namespace JenkinsService.Database
         /// <summary> Self-presentation </summary>
         public string? WhoIsThis { get; set; }
 
-
-
-        /// <summary> Jenkins name </summary>
-        public string? JenkinsName { get; set; }
+        /// <summary> Redmine name </summary>
+        public string? RedmineName { get; set; }
     }
 }

@@ -18,7 +18,7 @@ namespace JenkinsService.Database.Migrations
                 .HasAnnotation("ProductVersion", "5.0.10")
                 .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
-            modelBuilder.Entity("JenkinsService.Database.DtoProjectSettings", b =>
+            modelBuilder.Entity("JenkinsService.Database.DbeProjectSettings", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -34,7 +34,7 @@ namespace JenkinsService.Database.Migrations
                     b.ToTable("ProjectSettings");
                 });
 
-            modelBuilder.Entity("JenkinsService.Database.DtoProjectSettings+JobDescription", b =>
+            modelBuilder.Entity("JenkinsService.Database.DbeProjectSettings+JobDescription", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -83,9 +83,9 @@ namespace JenkinsService.Database.Migrations
                     b.ToTable("UsersInfo");
                 });
 
-            modelBuilder.Entity("JenkinsService.Database.DtoProjectSettings+JobDescription", b =>
+            modelBuilder.Entity("JenkinsService.Database.DbeProjectSettings+JobDescription", b =>
                 {
-                    b.HasOne("JenkinsService.Database.DtoProjectSettings", "Parent")
+                    b.HasOne("JenkinsService.Database.DbeProjectSettings", "Parent")
                         .WithMany("JobInformation")
                         .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -94,7 +94,7 @@ namespace JenkinsService.Database.Migrations
                     b.Navigation("Parent");
                 });
 
-            modelBuilder.Entity("JenkinsService.Database.DtoProjectSettings", b =>
+            modelBuilder.Entity("JenkinsService.Database.DbeProjectSettings", b =>
                 {
                     b.Navigation("JobInformation");
                 });

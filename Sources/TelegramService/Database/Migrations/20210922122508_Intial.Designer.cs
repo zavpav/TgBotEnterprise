@@ -21,7 +21,7 @@ namespace TelegramService.Database.Migrations
                 .HasAnnotation("ProductVersion", "5.0.10")
                 .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
-            modelBuilder.Entity("TelegramService.Database.DtoUserInfo", b =>
+            modelBuilder.Entity("TelegramService.Database.DbeUserInfo", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

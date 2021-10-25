@@ -3,12 +3,12 @@
 namespace RedmineService.Database
 {
     /// <summary> Project settings in Redmine service </summary>
-    public class DtoProjectSettings
+    public class DbeProjectSettings
     {
         // ReSharper disable once UnusedMember.Local
-        private DtoProjectSettings() { }
+        private DbeProjectSettings() { }
 
-        public DtoProjectSettings(string projectSysName)
+        public DbeProjectSettings(string projectSysName)
         {
             this.ProjectSysName = projectSysName;
             this.RedmineProjectName = "";

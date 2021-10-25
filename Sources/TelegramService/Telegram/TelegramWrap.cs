@@ -128,7 +128,7 @@ namespace TelegramService.Telegram
         }
 
         /// <summary> Update information </summary>
-        private async ValueTask<UserCache> UpdateDbUser(DtoUserInfo currUsrInfo, string eventId)
+        private async ValueTask<UserCache> UpdateDbUser(DbeUserInfo currUsrInfo, string eventId)
         {
             using var lc = await this._lock.Lock(new TimeSpan(0, 1, 0));
 
@@ -168,9 +168,9 @@ namespace TelegramService.Telegram
         }
 
         /// <summary> Create tg user information from telegram message  </summary>
-        private DtoUserInfo CreateTemporaryDtoUserInfoFromTgMessage(Message tgMsg, string eventId)
+        private DbeUserInfo CreateTemporaryDtoUserInfoFromTgMessage(Message tgMsg, string eventId)
         {
-            return new DtoUserInfo
+            return new DbeUserInfo
             {
                 DefaultChatId = tgMsg.Chat.Type != ChatType.Private ? null : (long?) tgMsg.Chat.Id,
                 BotUserId = "TG_TMP:" + tgMsg.From.Id,

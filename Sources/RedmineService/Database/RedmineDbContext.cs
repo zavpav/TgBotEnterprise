@@ -12,10 +12,10 @@ namespace RedmineService.Database
 #nullable disable
 
         /// <summary> Infomration about bot users in redmine server </summary>
-        public DbSet<DtoUserInfo> UsersInfo { get; set; }
+        public DbSet<DbeUserInfo> UsersInfo { get; set; }
 
         /// <summary> Information about project settings in redmine </summary>
-        public DbSet<DtoProjectSettings> ProjectSettings { get; set; }
+        public DbSet<DbeProjectSettings> ProjectSettings { get; set; }
 
 #nullable restore
 // ReSharper restore UnusedAutoPropertyAccessor.Global

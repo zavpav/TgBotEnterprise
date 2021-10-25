@@ -53,7 +53,7 @@ namespace RedmineService
             if (usrInfo == null)
             {
                 this._logger.Information(message, "User doesn't exist {@newUserMessage}", message);
-                var usr = this._mapper.Map<DtoUserInfo>(message);
+                var usr = this._mapper.Map<DbeUserInfo>(message);
                 await this._dbContext.UsersInfo.AddAsync(usr);
                 await this._dbContext.SaveChangesAsync();
             }
