@@ -1,13 +1,6 @@
-using System.Collections.Generic;
 using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoMapper;
-using CommonInfrastructure;
-using JenkinsService.Database;
-using Microsoft.EntityFrameworkCore;
-using RabbitMessageCommunication;
-using RabbitMessageCommunication.MainBot;
 using RabbitMqInfrastructure;
 using Serilog;
 
@@ -26,8 +19,6 @@ namespace JenkinsService
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            this._rabbitProcessor.Subscribe();
-
             while (!stoppingToken.IsCancellationRequested)
             {
                 await Task.Delay(1000, stoppingToken);

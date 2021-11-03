@@ -37,10 +37,42 @@ namespace RabbitMqInfrastructure
                     }
                     catch (Exception e)
                     {
-                        logger.Error(message, e, "Error while processing message {actionName} Processing message {@message}", actionName, message);
+                        logger.Error(e, "Error while processing message {actionName} Processing message {@message}", actionName, message);
                         throw;
                     }
                 });
+        }
+
+        public delegate Task<TOut> ProcessDirectMessage<TIn, TOut>(TIn message, IDictionary<string, string> rabbitMessageHeaders);
+
+        /// <summary> Subscribe to rabbit events </summary>
+        /// <typeparam name="TIn">Income message type</typeparam>
+        /// <typeparam name="TOut">Outgoing message type</typeparam>
+        /// <param name="rabbitService">Rabbit service</param>
+        /// <param name="actionName">Action</param>
+        /// <param name="messageProcessor">Message processor</param>
+        /// <param name="logger">Logger</param>
+        public static void RegisterDirectProcessor<TIn, TOut>(this IRabbitService rabbitService, 
+            string actionName, 
+            ProcessDirectMessage<TIn, TOut> messageProcessor,
+            ILogger logger)
+        where TIn: IRabbitMessage
+        where TOut: IRabbitMessage
+        {
+            rabbitService.RegisterDirectProcessor(actionName, async (message, rabbitHeaders) =>
+            {
+                try
+                {
+                    var msgData = JsonSerializer2.DeserializeRequired<TIn>(message, logger);
+                    var result = await messageProcessor(msgData, rabbitHeaders);
+                    return JsonSerializer.Serialize(result);
+                }
+                catch (Exception e)
+                {
+                    logger.Error(e, "Error while processing message {actionName} Processing message {@message}", actionName, message);
+                    throw;
+                }
+            });
         }
 
         public static async Task PublishInformation<T>(this IRabbitService rabbitService, string actionName, T messageData, EnumInfrastructureServicesType? subscriberServiceType = null)

@@ -8,6 +8,9 @@ namespace RabbitMessageCommunication
     /// </remarks>
     public static class RabbitMessages
     {
+        /// <summary> Simple ping message </summary>
+        public const string PingMessage = "PING";
+
         #region Messages for/from telegram
 
         /// <summary> Telegram service received a message from user </summary>

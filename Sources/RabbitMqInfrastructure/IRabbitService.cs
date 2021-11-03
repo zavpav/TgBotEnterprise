@@ -5,7 +5,17 @@ using CommonInfrastructure;
 
 namespace RabbitMqInfrastructure
 {
+    /// <summary> Delegate for processing rabbit messages </summary>
+    /// <param name="message">Message body</param>
+    /// <param name="rabbitMessageHeaders">Rabbit headers</param>
     public delegate Task ProcessMessage(string message, IDictionary<string, string> rabbitMessageHeaders);
+
+
+    /// <summary> Delegate for processing sync rabbit messages </summary>
+    /// <param name="message">Message body</param>
+    /// <param name="rabbitMessageHeaders">Rabbit headers</param>
+    /// <returns>Output message body</returns>
+    public delegate Task<string> DirectProcessMessage(string message, IDictionary<string, string> rabbitMessageHeaders);
 
     public interface IRabbitService
     {
@@ -31,5 +41,10 @@ namespace RabbitMqInfrastructure
         /// <param name="actionName">Action. If null - subcribe all for service</param>
         /// <param name="processFunc">Func generate Task for processing message params[message, headers]</param>
         void Subscribe(EnumInfrastructureServicesType? publisherServiceType, string? actionName, ProcessMessage processFunc);
+
+        /// <summary> Register direct message processor </summary>
+        /// <param name="actionName">Action name</param>
+        /// <param name="processFunc">Func generate Task for processing message params[message, headers]</param>
+        void RegisterDirectProcessor(string actionName, DirectProcessMessage processFunc);
     }
 }

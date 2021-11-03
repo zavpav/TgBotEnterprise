@@ -2,15 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
 using CommonInfrastructure;
 using MainBotService.Database;
+using MainBotService.RabbitCommunication.TelegramDialoges;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.MainBot;
+using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
 using RabbitMqInfrastructure;
 using Serilog;
@@ -33,6 +33,7 @@ namespace MainBotService.RabbitCommunication
             ILogger logger,
             IRabbitService rabbitService,
             IMapper mapper,
+            IEnumerable<ITelegramConversation> telegraConversations,
             BotServiceDbContext dbContext)
         {
             this._nodeInfo = nodeInfo;
@@ -52,47 +53,24 @@ namespace MainBotService.RabbitCommunication
             string directMessage)
         {
             this._logger.Information("Untrack Info Direct request {actionName} message data {directMessage}", actionName, directMessage);
-            if (actionName.ToUpper() == "PING")
-            {
-                return "OK"; // Check only existing service
-            }
-
-            if (actionName.ToUpper() == RabbitMessages.MainBotDirectGetAllUsers.ToUpper())
-            {
-                var requestAllMessage = JsonSerializer2.DeserializeRequired<EmptyMessage>(directMessage, this._logger);
-                this._logger.Information(requestAllMessage, "Processing {actionName} message {@message}", actionName, requestAllMessage);
-
-                var allUsers = await this._dbContext.UsersInfo.ToListAsync();
-                var allUsersPack = this._mapper.Map<ResponseAllUsersMessage.UserInfo[]>(allUsers.ToArray()) 
-                                   ?? new ResponseAllUsersMessage.UserInfo[0];
-
-                var responseMessage = new ResponseAllUsersMessage(requestAllMessage.SystemEventId) { AllUsersInfos = allUsersPack };
-
-                
-                this._logger.Information(responseMessage, "Response {@response}", responseMessage);
-                return JsonSerializer.Serialize(responseMessage);
-            }
 
             if (actionName.ToUpper() == RabbitMessages.MainBotProjectsInfoRequest.ToUpper())
             {
                 var requestProjectsMessage = JsonSerializer2.DeserializeRequired<MainBotProjectInfoRequestMessage>(directMessage, this._logger);
                 this._logger.Information(requestProjectsMessage, "Processing {actionName} message {@message}", actionName, requestProjectsMessage);
 
+                List<DbeProject> allProjects;
 
-                
-                DbeProject[] allProjects = new DbeProject[]
-                {
-                    new DbeProject("Fbpf", "АСУБС"){CurrentVersion = "100"},
-                    new DbeProject("Fsf", "АСУД"),
-                };
                 if (requestProjectsMessage.ProjectSysName != null)
                 {
-                    allProjects = allProjects.Where(x => x.SysName == requestProjectsMessage.ProjectSysName).ToArray();
+                    allProjects = new List<DbeProject>();
+
+                    var singleProj = await this._dbContext.Projects.SingleOrDefaultAsync(x => x.SysName == requestProjectsMessage.ProjectSysName);
+                    if (singleProj != null)
+                        allProjects.Add(singleProj);
                 }
-                //var allProjects = await this._dbContext.Projects.ToListAsync();
-
-
-
+                else
+                    allProjects = await this._dbContext.Projects.ToListAsync();
 
                 var allUsersPack = this._mapper.Map<MainBotProjectInfo[]>(allProjects.ToArray()) ?? new MainBotProjectInfo[0];
 
@@ -124,8 +102,33 @@ namespace MainBotService.RabbitCommunication
                 RabbitMessages.WebAdminPublishUpdateUser,
                 this.ProcessUpdateUserFromWebAdmin,
                 this._logger);
+
+            this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
+
+            this._rabbitService.RegisterDirectProcessor<EmptyMessage, ResponseAllUsersMessage>(
+                RabbitMessages.MainBotDirectGetAllUsers, 
+                this.ProcessMainBotDirectGetAllUsers, 
+                this._logger);
         }
 
+        /// <summary> Process direct request for getting all users </summary>
+        /// <param name="message">Empty message (I need only event id)</param>
+        /// <param name="rabbitMessageHeaders"></param>
+        /// <returns></returns>
+        private async Task<ResponseAllUsersMessage> ProcessMainBotDirectGetAllUsers(EmptyMessage message, IDictionary<string, string> rabbitMessageHeaders)
+        {
+            this._logger.Information(message, "Processing ProcessMainBotDirectGetAllUsers");
+
+            var allUsers = await this._dbContext.UsersInfo.ToListAsync();
+            var allUsersPack = this._mapper.Map<ResponseAllUsersMessage.UserInfo[]>(allUsers.ToArray())
+                               ?? new ResponseAllUsersMessage.UserInfo[0];
+
+            var responseMessage = new ResponseAllUsersMessage(message.SystemEventId) { AllUsersInfos = allUsersPack };
+
+            this._logger.Information(responseMessage, "Response {@response}", responseMessage);
+
+            return responseMessage;
+        }
 
         /// <summary> Process a income telegram message. </summary>
         /// <param name="incomeMessage">User message</param>

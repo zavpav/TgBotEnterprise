@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.BugTracker;
 using RabbitMessageCommunication.MainBot;
+using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
 using RabbitMqInfrastructure;
 using RedmineService.Database;
@@ -73,22 +74,11 @@ namespace RedmineService
         {
             Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
 
-            if (actionName.ToUpper() == "PING")
+            if (actionName.ToUpper() == "ANY_QUERY")
             {
                 try
                 {
-                    return await this._redmineService.GetAnyInformation();
-                }
-                catch (Exception e)
-                {
-                    return "Error " + e.ToString();
-                }
-            }
-            else if (actionName.ToUpper() == "ANY_QUERY")
-            {
-                try
-                {
-                    return (await this._redmineService.GetLastChangedIssues()).ToString();
+                    return (await this._redmineService.GetAnyInformation());
                 }
                 catch (Exception e)
                 {
@@ -130,6 +120,8 @@ namespace RedmineService
                 RabbitMessages.WebAdminProjectSettingsUpdate,
                 this.ProcessProjectSettingsUpdate,
                 this._logger);
+
+            this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
         }
 
 

@@ -74,11 +74,24 @@ namespace CommonInfrastructure
             }
             catch (Exception e)
             {
-                Log.Logger.Error(e, "Start service error");
+                Log.Logger.Error(e, "Start service error: IRabbitService undef");
                 Console.WriteLine(e);
                 throw;
             }
             initilizeAction?.Invoke(host);
+
+            try
+            {
+                var rabbitProcessor = host.Services.GetRequiredService<IRabbitProcessor>();
+                rabbitProcessor.Subscribe();
+            }
+            catch (Exception e)
+            {
+                Log.Logger.Error(e, "Start service error: IRabbitProcessor undef");
+                Console.WriteLine(e);
+                throw;
+            }
+
             host.Run();
         }
 

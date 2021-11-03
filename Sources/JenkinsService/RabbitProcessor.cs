@@ -9,9 +9,9 @@ using CommonInfrastructure;
 using JenkinsService.Database;
 using JenkinsService.Jenkins;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualBasic;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.MainBot;
+using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
 using RabbitMqInfrastructure;
 using Serilog;
@@ -47,24 +47,9 @@ namespace JenkinsService.RabbitCommunication
         {
             Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
 
-            if (actionName.ToUpper() == "PING")
-            {
-                try
-                {
-                    return await this._jenkinsCommunication.GetAnyInformation();
-
-                }
-                catch (Exception e)
-                {
-                    return "Error " + e.ToString();
-                }
-            }
-            else
-            {
-                await Task.Delay(9000);
-                Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
-                return directMessage;
-            }
+            await Task.Delay(9000);
+            Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
+            return directMessage;
         }
 
         public void Subscribe()
@@ -84,6 +69,7 @@ namespace JenkinsService.RabbitCommunication
                 this.ProcessProjectSettingsUpdate,
                 this._logger);
 
+            this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
         }
 
         private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)

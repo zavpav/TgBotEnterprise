@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using CommonInfrastructure;
+using RabbitMessageCommunication;
 using RabbitMqInfrastructure;
 
 namespace WebAdminService.Data
@@ -26,7 +27,7 @@ namespace WebAdminService.Data
             var eventId = this._eventIdGenerator.GetNextEventId();
             foreach (var servicesType in Enum.GetValues<EnumInfrastructureServicesType>())
             {
-                tasks.Add(Tuple.Create(servicesType, this._rabbitService.DirectRequest(servicesType, "ping", "ping", eventId)));
+                tasks.Add(Tuple.Create(servicesType, this._rabbitService.DirectRequest(servicesType, RabbitMessages.PingMessage, RabbitMessages.PingMessage, eventId)));
             }
             
             var result = new List<ActualServicesInfo>();

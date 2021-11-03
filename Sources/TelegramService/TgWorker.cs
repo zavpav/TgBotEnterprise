@@ -23,8 +23,6 @@ namespace TelegramService
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            this._rabbitProcessor.Subscribe();
-
             while (!stoppingToken.IsCancellationRequested)
             {
                 try

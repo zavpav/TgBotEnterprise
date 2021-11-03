@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using AutoMapper;
 using CommonInfrastructure;
+using RabbitMessageCommunication;
+using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMqInfrastructure;
 using Serilog;
 
@@ -34,29 +36,14 @@ namespace WebAdminService
         {
             Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
 
-            if (actionName.ToUpper() == "PING")
-            {
-                try
-                {
-                    return "OK";
-
-                }
-                catch (Exception e)
-                {
-                    return "Error " + e.ToString();
-                }
-            }
-            else
-            {
-                await Task.Delay(9000);
-                Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
-                return directMessage;
-            }
+            await Task.Delay(9000);
+            Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
+            return directMessage;
         }
 
         public void Subscribe()
         {
-            throw new System.NotImplementedException();
+            this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
         }
     }
 }

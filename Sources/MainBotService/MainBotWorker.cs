@@ -19,8 +19,6 @@ namespace MainBotService
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            this._rabbitProcessor.Subscribe();
-
             while (!stoppingToken.IsCancellationRequested)
             {
                 //_logger.LogInformation("MainBotService running at: {time}", DateTimeOffset.Now);

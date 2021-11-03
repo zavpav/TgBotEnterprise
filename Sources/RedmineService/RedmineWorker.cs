@@ -19,8 +19,6 @@ namespace RedmineService
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            this._rabbitProcessor.Subscribe();
-
             while (!stoppingToken.IsCancellationRequested)
             {
                 //_logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);

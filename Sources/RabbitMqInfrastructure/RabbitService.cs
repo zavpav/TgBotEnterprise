@@ -46,6 +46,8 @@ namespace RabbitMqInfrastructure
         private const int DirectRequestTimeoutSec = 30;
 
 
+        #region Initialize and communication
+
         private volatile IConnection? _connection;
         private IModel? _channel;
         
@@ -124,23 +126,53 @@ namespace RabbitMqInfrastructure
                 }
             }
         }
+        #endregion
+
+        #region Sync requests
+
+        /// <summary> Processors for direct requests </summary>
+        private Dictionary<string, DirectProcessMessage> _directRequestProcessors = new Dictionary<string, DirectProcessMessage>(10);
+
+        public void RegisterDirectProcessor(string actionName, DirectProcessMessage processFunc)
+        {
+            this._logger.Information("Add direct processor for action ({actionName})", actionName);
+            this._directRequestProcessors.Add(actionName, processFunc);
+        }
 
         /// <summary> Process direct request </summary>
         private async Task ProcessDirectRequest(BasicDeliverEventArgs e)
         {
             var requestMessage = Encoding.UTF8.GetString(e.Body.ToArray());
             var messageHeaders = this.ConvertHeadersToString(e.BasicProperties.Headers);
-
             messageHeaders.TryGetValue(SystemEventIdHeaderName, out var eventId);
-            this._logger.InformationWithEventContext(eventId, "ProcessDirectRequest {rawMessage} {@headers}", requestMessage, messageHeaders);
+            messageHeaders.TryGetValue("ActionName", out var actionName);
+            
+            this._logger
+                .ForContext("IncomeMessage", requestMessage)
+                .ForContext("MessageHeaders", messageHeaders)
+                .InformationWithEventContext(eventId, "ProcessDirectRequest action=({actionName})", actionName);
+            
+            if (string.IsNullOrEmpty(actionName))
+                throw new NotSupportedException();
 
             try
             {
+                string responseMessage;
+                this._directRequestProcessors.TryGetValue(actionName, out var directProcessor);
+                if (directProcessor != null)
+                {
+                    this._logger.InformationWithEventContext(eventId, "Found direct processor for action ({actionName})", actionName);
+                    responseMessage = await directProcessor(requestMessage, messageHeaders);
+                }
+                else
+                {
+                    this._logger.InformationWithEventContext(eventId, "Not found direct processor for action ({actionName})", actionName);
+                    responseMessage = await this._requestProcessor.Value.ProcessDirectUntypedMessage(this, actionName, messageHeaders, requestMessage);
+                }
 
-                var actionName = messageHeaders["ActionName"];
-                var responseMessage = await this._requestProcessor.Value.ProcessDirectUntypedMessage(this, actionName, messageHeaders, requestMessage);
-
-                this._logger.InformationWithEventContext(eventId, "Response ProcessDirectRequest {rawMessage}", responseMessage);
+                this._logger
+                    .ForContext("ResponceMessage", responseMessage)
+                    .InformationWithEventContext(eventId, "Processed ProcessDirectRequest for action ({actionName})", actionName);
 
                 var msgBody = Encoding.UTF8.GetBytes(responseMessage);
                 this._channel.BasicPublish("", e.BasicProperties.CorrelationId, body: msgBody);
@@ -218,6 +250,25 @@ namespace RabbitMqInfrastructure
             }
         }
 
+        /// <summary> Directly sending message to another node </summary>
+        /// <param name="message">Message</param>
+        /// <param name="responseQueueName">Queue name for response</param>
+        /// <param name="requestHeaders">Information for find other service and execute request</param>
+        /// <param name="channel">Channel for the temporary response queue</param>
+        private void DirectRequestInternal(string message, string responseQueueName, Dictionary<string, object> requestHeaders, IModel channel)
+        {
+            var requestBody = Encoding.UTF8.GetBytes(message);
+
+            var basicProperties = channel.CreateBasicProperties();
+            basicProperties.CorrelationId = responseQueueName;
+            basicProperties.Headers = requestHeaders;
+
+            channel.BasicPublish(exchange: DirectRequestExchangeName,
+                routingKey: string.Empty,
+                body: requestBody,
+                basicProperties: basicProperties);
+        }
+
         private async Task<string> ResponseTaskSourceWait(TaskCompletionSource<string> tcsResponse)
         {
             using var timeoutCancellationTokenSource = new CancellationTokenSource();
@@ -236,6 +287,10 @@ namespace RabbitMqInfrastructure
             }
         }
 
+        #endregion
+
+        #region Acync communication
+
         /// <summary> Publish information from node to CentralHub </summary>
         /// <param name="actionName">Method name</param>
         /// <param name="message">Information</param>
@@ -252,7 +307,7 @@ namespace RabbitMqInfrastructure
                 { "Publisher", this._nodeInfo.ServicesType.ToString() },
                 { "ActionName", actionName }
             };
-            
+
             if (subscriberServiceType != null)
                 publishHeaders.Add("InfrastructureServicesType", subscriberServiceType.Value.ToString());
 
@@ -300,7 +355,7 @@ namespace RabbitMqInfrastructure
             if (publisherServiceType != null)
                 headers.Add("Publisher", publisherServiceType.Value.ToString());
 
-            if (actionName != null )
+            if (actionName != null)
                 headers.Add("ActionName", actionName);
 
             channel.QueueBind(subscribedQueue.QueueName,
@@ -324,24 +379,8 @@ namespace RabbitMqInfrastructure
 
         }
 
-        /// <summary> Directly sending message to another node </summary>
-        /// <param name="message">Message</param>
-        /// <param name="responseQueueName">Queue name for response</param>
-        /// <param name="requestHeaders">Information for find other service and execute request</param>
-        /// <param name="channel">Channel for the temporary response queue</param>
-        private void DirectRequestInternal(string message, string responseQueueName, Dictionary<string, object> requestHeaders, IModel channel)
-        {
-            var requestBody = Encoding.UTF8.GetBytes(message);
+        #endregion
 
-            var basicProperties = channel.CreateBasicProperties();
-            basicProperties.CorrelationId = responseQueueName;
-            basicProperties.Headers = requestHeaders;
-
-            channel.BasicPublish(exchange: DirectRequestExchangeName,
-                routingKey: string.Empty,
-                body: requestBody,
-                basicProperties: basicProperties);
-        }
 
         /// <summary> Convert messageHeaders to Dictionary[string, string] </summary>
         private Dictionary<string, string> ConvertHeadersToString(IDictionary<string, object> messageHeaders)

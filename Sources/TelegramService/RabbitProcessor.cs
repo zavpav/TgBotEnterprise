@@ -6,6 +6,7 @@ using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.MainBot;
+using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMqInfrastructure;
 using Serilog;
 using TelegramService.Database;
@@ -44,24 +45,9 @@ namespace TelegramService.RabbitCommunication
         {
             Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
 
-            if (actionName.ToUpper() == "PING")
-            {
-                try
-                {
-                    return "Alive. Don't direct tested.";
-
-                }
-                catch (Exception e)
-                {
-                    return "Error " + e.ToString();
-                }
-            }
-            else
-            {
-                await Task.Delay(9000);
-                Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
-                return directMessage;
-            }
+            await Task.Delay(9000);
+            Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
+            return directMessage;
         }
 
         public void Subscribe()
@@ -76,6 +62,7 @@ namespace TelegramService.RabbitCommunication
                 this.ProcessUpdateUserInformation,
                 this._logger);
 
+            this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
         }
 
         private Task ProcessOutgoingMessage(TelegramOutgoingMessage messageData, IDictionary<string, string> rabbitMessageHeaders)
