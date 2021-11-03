@@ -14,7 +14,7 @@ namespace MainBotService.Database
         public DbSet<DbeUserInfo> UsersInfo { get; set; }
 
         /// <summary> List of projects </summary>
-//        public DbSet<DbeProject> Projects { get; set; }
+        public DbSet<DbeProject> Projects { get; set; }
 
 #nullable restore
     }
