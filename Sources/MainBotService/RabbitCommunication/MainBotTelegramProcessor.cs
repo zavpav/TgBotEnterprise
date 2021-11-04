@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
-using System.Text.Json;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -55,21 +56,41 @@ namespace MainBotService.RabbitCommunication
                     this._logger.Information(incomeMessage, "Processing 'MY TASKS' message");
                     var requestMessage = new BugTrackerTasksRequestMessage(incomeMessage.SystemEventId)
                     {
-                        FilterUserBotId = incomeMessage.BotUserId
+                        FilterUserBotId = incomeMessage.BotUserId,
+                        FilterStatus = new []{"Черновик", "В работе"}
                     }; 
 
-                    var responseMessage = await this._owner._rabbitService.DirectRequestTo<BugTrackerTasksResponseMessage>(
+                    var responseMessage = await this._owner._rabbitService.DirectRequestTo<BugTrackerTasksRequestMessage, BugTrackerTasksResponseMessage>(
                         EnumInfrastructureServicesType.BugTracker,
                         RabbitMessages.BugTrackerRequestIssues,
                         requestMessage
                         );
+
+                    var issues = responseMessage.Issues.Where(x => x.Status == "Черновик").ToList();
+
+                    var sb = new StringBuilder(200);
+                    if (issues.Count > 10)
+                    {
+                        sb.Append("Слишком много задач\n");
+                        sb.Append(issues.Count);
+                    }
+                    else
+                    {
+                        sb.Append("Задачи\n");
+                        foreach (var issue in issues)
+                        {
+                            sb.AppendFormat("#{0} {1}\n", issue.Num, issue.Subject);
+                            sb.AppendFormat("   Статус: {0}\n   Исполнитель: {1}\n", issue.Status, issue.AssignOn);
+                            sb.Append("\n");
+                        }
+                    }
 
                     return new List<TelegramOutgoingMessage>
                     {
                         new TelegramOutgoingMessage
                         {
                             SystemEventId = incomeMessage.SystemEventId,
-                            Message = "Ща соберём " + JsonSerializer.Serialize(responseMessage),
+                            Message = sb.ToString(),
                             ChatId = incomeMessage.ChatId
                         }
                     };
