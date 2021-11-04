@@ -31,5 +31,8 @@ namespace RedmineService.Database
         /// <returns>In my team's redmine I had two types of projects in single name. We separated them by version name</returns>
         public string VersionMask { get; set; }
 
+        /// <summary> Redmine projectId </summary>
+        public int? RedmineProjectId { get; set; }
+
     }
 }

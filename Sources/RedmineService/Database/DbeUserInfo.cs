@@ -20,5 +20,8 @@ namespace RedmineService.Database
 
         /// <summary> Redmine name </summary>
         public string? RedmineName { get; set; }
+
+        /// <summary> Redmine userId </summary>
+        public int? RedmineUserId { get; set; }
     }
 }

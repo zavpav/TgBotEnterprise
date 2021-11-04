@@ -47,6 +47,32 @@ namespace RedmineService
             this._redmineService = new RedmineCommunication(logger, dbContext);
         }
 
+        public void Subscribe()
+        {
+            this._rabbitService.Subscribe<MainBotUpdateUserInfo>(EnumInfrastructureServicesType.Main,
+                RabbitMessages.MainBotPublishUpdateUser,
+                this.ProcessUpdateUserInformation,
+                this._logger);
+
+            this._rabbitService.Subscribe<WebAdminRequestProjectSettingsMessage>(EnumInfrastructureServicesType.WebAdmin,
+                RabbitMessages.WebAdminProjectSettingsRequest,
+                this.ProcessProjectSettingsRequest,
+                this._logger);
+
+            this._rabbitService.Subscribe<WebAdminUpdateProjectSettings>(EnumInfrastructureServicesType.WebAdmin,
+                RabbitMessages.WebAdminProjectSettingsUpdate,
+                this.ProcessProjectSettingsUpdate,
+                this._logger);
+
+            this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
+
+            this._rabbitService.RegisterDirectProcessor<BugTrackerTasksRequestMessage, BugTrackerTasksResponseMessage>(
+                RabbitMessages.BugTrackerRequestIssues, ProcessBugTrackerRequestIssues,
+                this._logger);
+        }
+
+        #region Processing messages
+
         private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
         {
             var usrInfo = await this._dbContext.UsersInfo
@@ -67,68 +93,10 @@ namespace RedmineService
             }
         }
 
-        public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit,
-            string actionName,
-            IDictionary<string, string> messageHeaders,
-            string directMessage)
-        {
-            Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
-
-            if (actionName.ToUpper() == "ANY_QUERY")
-            {
-                try
-                {
-                    return (await this._redmineService.GetAnyInformation());
-                }
-                catch (Exception e)
-                {
-                    return "Error: " + e.Message + " " + e.ToString();
-
-                }
-            }
-            else if (actionName == RabbitMessages.BugTrackerRequestIssues)
-            {
-                var requestMessage = JsonSerializer2.DeserializeRequired<BugTrackerTasksRequestMessage>(directMessage, this._logger);
-
-                var responseMessage = new BugTrackerTasksResponseMessage(requestMessage.SystemEventId);
-                
-                var foundIssues = await this._redmineService.SimpleFindIssues(requestMessage.FilterUserBotId,
-                    requestMessage.FilterProjectSysName, requestMessage.FilterVersionText);
-                
-                responseMessage.Issues = this._mapper.Map<BugTrackerTasksResponseMessage.BugTrackerIssue[]>(foundIssues);
-                
-                return JsonSerializer.Serialize(responseMessage);
-            }
-
-
-            return "Response for " + directMessage;
-        }
-
-        public void Subscribe()
-        {
-            this._rabbitService.Subscribe<MainBotUpdateUserInfo>(EnumInfrastructureServicesType.Main,
-                RabbitMessages.MainBotPublishUpdateUser,
-                this.ProcessUpdateUserInformation,
-                this._logger);
-
-            this._rabbitService.Subscribe<WebAdminRequestProjectSettingsMessage>(EnumInfrastructureServicesType.WebAdmin,
-                RabbitMessages.WebAdminProjectSettingsRequest,
-                this.ProcessProjectSettingsRequest,
-                this._logger);
-
-            this._rabbitService.Subscribe<WebAdminUpdateProjectSettings>(EnumInfrastructureServicesType.WebAdmin,
-                RabbitMessages.WebAdminProjectSettingsUpdate,
-                this.ProcessProjectSettingsUpdate,
-                this._logger);
-
-            this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
-        }
-
-
         /// <summary> Processing request settings message  </summary>
         private async Task ProcessProjectSettingsRequest(WebAdminRequestProjectSettingsMessage message, IDictionary<string, string> rabbitMessageHeaders)
         {
-            var responseProjectSettings = new WebAdminResponseProjectSettingsMessage(message.SystemEventId, 
+            var responseProjectSettings = new WebAdminResponseProjectSettingsMessage(message.SystemEventId,
                 this._nodeInfo.ServicesType,
                 this._nodeInfo.NodeName,
                 "Redmine settings",
@@ -142,7 +110,7 @@ namespace RedmineService
                 throw new NotSupportedException("Getting project settings error projectSettings == null");
             }
 
-            responseProjectSettings.SettingsItems = new []
+            responseProjectSettings.SettingsItems = new[]
             {
                 new WebAdminResponseProjectSettingsMessage.SettingsItem
                 {
@@ -160,11 +128,9 @@ namespace RedmineService
                 }
             };
             this._logger.Information(responseProjectSettings, "Response project settings {@message}", responseProjectSettings);
-            
+
             await this._rabbitService.PublishInformation(RabbitMessages.WebAdminProjectSettingsResponse, responseProjectSettings);
         }
-
-        
 
         /// <summary> Update settings from WebAdmin </summary>
         private async Task ProcessProjectSettingsUpdate(WebAdminUpdateProjectSettings message, IDictionary<string, string> rabbitMessageHeaders)
@@ -191,5 +157,48 @@ namespace RedmineService
 
             await this._redmineService.SaveProjectSettings(projectSettings);
         }
+
+        #endregion
+
+        #region Process direct requests
+        
+        /// <summary> Get messages list by "filter" </summary>
+        private async Task<BugTrackerTasksResponseMessage> ProcessBugTrackerRequestIssues(BugTrackerTasksRequestMessage requestMessage, IDictionary<string, string> rabbitMessageHeaders)
+        {
+            var responseMessage = new BugTrackerTasksResponseMessage(requestMessage.SystemEventId);
+
+            var foundIssues = await this._redmineService.SimpleFindIssues(requestMessage.FilterUserBotId,
+                requestMessage.FilterProjectSysName, 
+                requestMessage.FilterVersionText,
+                requestMessage.FilterStatus);
+
+            responseMessage.Issues = this._mapper.Map<BugTrackerTasksResponseMessage.BugTrackerIssue[]>(foundIssues);
+
+            return responseMessage;
+        }
+
+        public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit,
+            string actionName,
+            IDictionary<string, string> messageHeaders,
+            string directMessage)
+        {
+            Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
+
+            if (actionName.ToUpper() == "ANY_QUERY")
+            {
+                try
+                {
+                    return (await this._redmineService.GetAnyInformation());
+                }
+                catch (Exception e)
+                {
+                    return "Error: " + e.Message + " " + e.ToString();
+
+                }
+            }
+
+            return "Response for " + directMessage;
+        }
+        #endregion
     }
 }
