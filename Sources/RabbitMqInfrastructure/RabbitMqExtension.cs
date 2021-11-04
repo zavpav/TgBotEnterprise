@@ -117,23 +117,23 @@ namespace RabbitMqInfrastructure
             return response ?? throw new NotSupportedException("Empty response or deserialization problem");
         }
 
-        /// <summary> Direct request for another service </summary>
-        /// <typeparam name="TO">Response message type</typeparam>
-        /// <param name="rabbitService">Rabbit service</param>
-        /// <param name="serviceType">Service type</param>
-        /// <param name="actionName">Method name</param>
-        /// <param name="message">Message</param>
-        public static async Task<TO> DirectRequestTo<TO>(this IRabbitService rabbitService,
-            EnumInfrastructureServicesType serviceType,
-            string actionName,
-            IRabbitMessage message)
-            where TO : IRabbitMessage
-        {
-            var jsonMessage = JsonSerializer.Serialize(message);
-            var responseStr = await rabbitService.DirectRequest(serviceType, actionName, jsonMessage, message.SystemEventId);
-            var response = JsonSerializer.Deserialize<TO>(responseStr);
-            return response ?? throw new NotSupportedException("Empty response or deserialization problem");
-        }
+        ///// <summary> Direct request for another service </summary>
+        ///// <typeparam name="TO">Response message type</typeparam>
+        ///// <param name="rabbitService">Rabbit service</param>
+        ///// <param name="serviceType">Service type</param>
+        ///// <param name="actionName">Method name</param>
+        ///// <param name="message">Message</param>
+        //public static async Task<TO> DirectRequestTo<TO>(this IRabbitService rabbitService,
+        //    EnumInfrastructureServicesType serviceType,
+        //    string actionName,
+        //    IRabbitMessage message)
+        //    where TO : IRabbitMessage
+        //{
+        //    var jsonMessage = JsonSerializer.Serialize(message);
+        //    var responseStr = await rabbitService.DirectRequest(serviceType, actionName, jsonMessage, message.SystemEventId);
+        //    var response = JsonSerializer.Deserialize<TO>(responseStr);
+        //    return response ?? throw new NotSupportedException("Empty response or deserialization problem");
+        //}
 
     }
 }
