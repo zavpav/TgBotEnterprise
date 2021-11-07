@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CommonInfrastructure;
+using MainBotService.RabbitCommunication.TelegramDialoges;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.BugTracker;
@@ -17,14 +19,18 @@ namespace MainBotService.RabbitCommunication
         public class TelegramProcessor
         {
             private readonly MainBotService _owner;
+            private readonly Lazy<IEnumerable<ITelegramConversation>> _telegraConversations;
             private readonly ILogger _logger;
 
             /// <summary> Cache for response waters </summary>
             private readonly System.Runtime.Caching.MemoryCache _waitResponseCache = new System.Runtime.Caching.MemoryCache("responseWaiter");
 
-            public TelegramProcessor(MainBotService owner, ILogger logger)
+            public TelegramProcessor(MainBotService owner,
+                Lazy<IEnumerable<ITelegramConversation>> telegraConversations, 
+                ILogger logger)
             {
                 this._owner = owner;
+                this._telegraConversations = telegraConversations;
                 this._logger = logger;
             }
 
@@ -49,8 +55,24 @@ namespace MainBotService.RabbitCommunication
                         return new List<TelegramOutgoingMessage>(); // Ignore group messages
                 }
 
+                //find uncomplited conversation
+                //..
 
+                //find conversation by first message
+                var conversations = this._telegraConversations.Value.ToList();
+                foreach (var conversation in conversations)
+                {
+                    if (await conversation.IsStartingMessage(incomeMessage.MessageText))
+                    {
+                        var nextStepName = await conversation.NextConversationStep("first", incomeMessage.MessageText);
+                        if (nextStepName != null)
+                        {
+                            //..
+                        }
+                    }
+                }
 
+                // others
                 if (incomeMessage.MessageText.ToUpper() == "МОИ ЗАДАЧИ" || incomeMessage.MessageText.ToUpper() == "MY TASKS")
                 {
                     this._logger.Information(incomeMessage, "Processing 'MY TASKS' message");

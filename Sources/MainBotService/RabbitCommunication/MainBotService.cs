@@ -18,7 +18,7 @@ using Serilog;
 namespace MainBotService.RabbitCommunication
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    public partial class MainBotService : IRabbitProcessor
+    public partial class MainBotService : IRabbitProcessor, IMainBotService
     {
         private readonly INodeInfo _nodeInfo;
         private readonly ILogger _logger;
@@ -33,7 +33,7 @@ namespace MainBotService.RabbitCommunication
             ILogger logger,
             IRabbitService rabbitService,
             IMapper mapper,
-            IEnumerable<ITelegramConversation> telegraConversations,
+            Lazy<IEnumerable<ITelegramConversation>> telegraConversations,
             BotServiceDbContext dbContext)
         {
             this._nodeInfo = nodeInfo;
@@ -42,7 +42,7 @@ namespace MainBotService.RabbitCommunication
             this._mapper = mapper;
             this._dbContext = dbContext;
 
-            this._telegramProcessor = new TelegramProcessor(this, this._logger);
+            this._telegramProcessor = new TelegramProcessor(this, telegraConversations, this._logger);
             this._redmineProcessor = new RedmineProcessor(this, this._logger);
         }
 

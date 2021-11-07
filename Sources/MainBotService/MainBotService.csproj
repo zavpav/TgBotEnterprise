@@ -30,6 +30,5 @@
 
   <ItemGroup>
     <Folder Include="Database\Migrations\" />
-    <Folder Include="RabbitCommunication\TelegramDialoges\" />
   </ItemGroup>
 </Project>

@@ -156,7 +156,6 @@ namespace TelegramService.Telegram
                     usrInfo.WhoIsThis = currUsrInfo.WhoIsThis;
                     usrInfo.BotUserId = currUsrInfo.BotUserId;
 
-                    this._dbContext.UsersInfo.Update(usrInfo);
                     await this._dbContext.SaveChangesAsync();
                 }
             }

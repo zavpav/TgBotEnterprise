@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using RabbitMqInfrastructure;
 using Serilog;
-using Serilog.Core;
 using Serilog.Events;
 
 namespace CommonInfrastructure
@@ -27,6 +24,8 @@ namespace CommonInfrastructure
             EnumInfrastructureServicesType servicesType)
             where TDirectRequestProcessor : class, IRabbitProcessor
         {
+            services.AddTransient(typeof(Lazy<>), typeof(Lazier<>));
+
             var currentNode = configuration.GetValue<string?>(CurrentNodeName)
                               ?? servicesType.ToString();
             var nodeInfo = new NodeInfo(currentNode, servicesType);

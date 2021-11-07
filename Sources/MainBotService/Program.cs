@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using CommonInfrastructure;
 using MainBotService.Database;
 using MainBotService.RabbitCommunication;
+using MainBotService.RabbitCommunication.TelegramDialoges;
 using Serilog;
 
 namespace MainBotService
@@ -38,8 +39,11 @@ namespace MainBotService
                     var mapper = mapperConfig.CreateMapper();
                     services.AddSingleton<IMapper>(mapper);
 
-
                     services.AddHostedService<MainBotWorker>();
+
+                    services.AddSingleton<IMainBotService, RabbitCommunication.MainBotService>();
+                    services.AddTransient<ITelegramConversation, MyTasksConversation>();
+                    services.AddTransient<ITelegramConversation, VersionTasksConversation>();
                 });
     }
 }
