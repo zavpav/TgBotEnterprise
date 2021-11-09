@@ -12,7 +12,7 @@
         }
 
         /// <summary> Event Id - Unique id in all services </summary>
-        public string SystemEventId { get; set; }
+        public string SystemEventId { get; }
 
         /// <summary> All projects information  </summary>
         public MainBotProjectInfo[] AllProjectInfos { get; set; } = new MainBotProjectInfo[0];
