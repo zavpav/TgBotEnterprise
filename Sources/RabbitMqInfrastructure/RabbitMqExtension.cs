@@ -28,16 +28,29 @@ namespace RabbitMqInfrastructure
             where T : IRabbitMessage
         {
             rabbitService.Subscribe(serviceType, actionName, 
-                (message, rabbitHeaders) =>
+                async (message, rabbitHeaders) =>
                 {
                     try
                     {
                         var msgData = JsonSerializer2.DeserializeRequired<T>(message, logger);
-                        return messageProcessor(msgData, rabbitHeaders);
+                        await messageProcessor(msgData, rabbitHeaders);
                     }
                     catch (Exception e)
                     {
-                        logger.Error(e, "Error while processing message {actionName} Processing message {@message}", actionName, message);
+                        string? eventId = null;
+                        try
+                        {
+                            var emptyMessage = JsonSerializer2.DeserializeRequired<EmptyMessage>(message, logger);
+                            eventId = emptyMessage.SystemEventId;
+                        }
+                        catch 
+                        {
+                            // ignore
+                        }
+
+                        logger
+                            .ForContext("message", message)
+                            .ErrorWithEventContext(eventId, e, "Error while processing message {actionName}", actionName);
                         throw;
                     }
                 });
