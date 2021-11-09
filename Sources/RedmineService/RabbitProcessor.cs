@@ -167,15 +167,51 @@ namespace RedmineService
         private async Task<BugTrackerTasksResponseMessage> ProcessBugTrackerRequestIssues(BugTrackerTasksRequestMessage requestMessage, IDictionary<string, string> rabbitMessageHeaders)
         {
             var responseMessage = new BugTrackerTasksResponseMessage(requestMessage.SystemEventId);
+            
+            // force update issues
+            var changedIssues = await this._redmineService.UpdateIssuesDb();
+            Task? sendUpdatedIssues = null;
+            if (changedIssues.Count > 0)
+                sendUpdatedIssues = this.SendUpdatedIssues(changedIssues);
 
-            var foundIssues = await this._redmineService.SimpleFindIssues(requestMessage.FilterUserBotId,
+            var foundIssues = await this._redmineService.SimpleFindIssues(
+                requestMessage.FilterUserBotId,
                 requestMessage.FilterProjectSysName, 
-                requestMessage.FilterVersionText,
-                requestMessage.FilterStatus);
+                requestMessage.FilterVersionText);
 
             responseMessage.Issues = this._mapper.Map<BugTrackerIssue[]>(foundIssues);
+            
+            if (sendUpdatedIssues != null)
+                await sendUpdatedIssues;
 
             return responseMessage;
+        }
+
+        /// <summary> Send information about changed issues </summary>
+        public async Task SendUpdatedIssues(List<DtoIssueChanged> changedIssues)
+        {
+            // I don't think I often get many messages at once.
+            // That's why I don't concat several messages into one.
+            foreach (var issueChanged in changedIssues)
+            {
+                var changedIssueMessage = new BugTrackerIssueChangedMessage(this._eventIdGenerator.GetNextEventId());
+                if (issueChanged.OldVersion != null)
+                    changedIssueMessage.OldVersion = this._mapper.Map<BugTrackerIssue>(issueChanged.OldVersion);
+                if (issueChanged.NewVersion != null)
+                    changedIssueMessage.NewVersion = this._mapper.Map<BugTrackerIssue>(issueChanged.NewVersion);
+
+                this._logger
+                    .ForContext("message", changedIssueMessage, true)
+                    .Information("Issue changed #{Num}", 
+                        changedIssueMessage.OldVersion?.Num 
+                        ?? changedIssueMessage.NewVersion?.Num
+                        ?? "<error>");
+
+                await this._rabbitService.PublishInformation(
+                    RabbitMessages.BugTrackerIssueChanged, 
+                    changedIssueMessage,
+                    EnumInfrastructureServicesType.Main);
+            }
         }
 
         public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit,

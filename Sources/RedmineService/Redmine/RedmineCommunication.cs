@@ -4,14 +4,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
+using RabbitMessageCommunication.BugTracker;
 using RedmineService.Database;
 using Serilog;
 
@@ -53,8 +52,6 @@ namespace RedmineService.Redmine
                 this.UpdateCredential,
                 this._logger);
         }
-
-
 
         /// <summary> Check redmine alive (select any information from redmine) </summary>
         public async Task<string> GetAnyInformation()
@@ -125,77 +122,198 @@ namespace RedmineService.Redmine
         /// <param name="userBotId">User botId</param>
         /// <param name="projectSysName">Name of project in bot system</param>
         /// <param name="versionText">Version name as text (required projectSysName)</param>
-        /// <param name="statusesNames">Statuses</param>
-        public async Task<List<RedmineIssue>> SimpleFindIssues(string? userBotId,
+        public async Task<List<DbeIssue>> SimpleFindIssues(string? userBotId,
             string? projectSysName,
-            string? versionText, 
-            string[]? statusesNames)
+            string? versionText)
         {
             await Task.Yield();
 
-            var issuesRequest = "issues.xml?sort=updated_on:desc&limit=1000";
+            var issuesQuery = this._dbContext.Issues.AsQueryable();
+            if (userBotId != null)
+                issuesQuery = issuesQuery.Where(x => x.UserBotIdAssignOn == userBotId);
+            if (projectSysName != null)
+                issuesQuery = issuesQuery.Where(x => x.ProjectSysName == projectSysName);
+            if (versionText != null)
+                issuesQuery = issuesQuery.Where(x => x.Version == versionText);
 
-            if (!string.IsNullOrEmpty(userBotId))
-            {
-                //assigned_to
-                var remineUserId = await this.GetRedmineUserId(userBotId);
-                if (remineUserId != null)
-                    issuesRequest += $"&assigned_to_id={remineUserId}";
-                else
-                    this._logger.Error("Find redmine user id error. Id = null");
-            }
+            return await issuesQuery.ToListAsync();
+        }
 
-            if (statusesNames != null)
+        /// <summary> Update database with issues </summary>
+        public async Task<List<DtoIssueChanged>> UpdateIssuesDb()
+        {
+            var issuesChanged = new List<DtoIssueChanged>();
+
+            var updatedIssues = await this.GetUpdatedIssues();
+            foreach (var issue in updatedIssues)
             {
-                var allStatuses = new List<int>();
-                foreach (var statusesName in statusesNames)
+                var savedIssue = await this._dbContext.Issues
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(x => x.Num == issue.Num);
+
+                // Workaround for a little error in Redmine
+                // Skip "last issue"
+                if (savedIssue?.UpdateOn == issue.UpdateOn)
+                    continue;
+
+                // skip untracking issues (doesn't have botId in any ("old" or "new" version) information about user
+                if (!string.IsNullOrEmpty(issue.UserBotIdAssignOn) 
+                    || !string.IsNullOrEmpty(savedIssue?.UserBotIdAssignOn))
                 {
-                    var statusId = await this.GetStatusId(statusesName);
-                    if (statusId == null)
-                        this._logger.Error("Find redmine status id error. Id = null {statusesName}", statusesName);
+                    issuesChanged.Add(new DtoIssueChanged
+                    {
+                        OldVersion = savedIssue,
+                        NewVersion = issue
+                    });
+                }
+
+                try
+                {
+                    if (savedIssue == null)
+                        this._dbContext.Issues.Add(issue); // add new issue
                     else
-                        allStatuses.Add(statusId.Value);
+                    {
+                        savedIssue = await this._dbContext.Issues
+                            .SingleOrDefaultAsync(x => x.Num == issue.Num); // find again with tracking info
+                        issue.Id = savedIssue.Id;
+                        this._dbContext.Entry(savedIssue).CurrentValues.SetValues(issue);// update information in dbContext
+                    }
                 }
-                if (allStatuses.Count != 0)
-                    issuesRequest += "&status_id=" + string.Join(";", allStatuses);
-            }
-
-            if (!string.IsNullOrEmpty(projectSysName))
-            {
-                var projectId = await this.GetProjectId(projectSysName);
-                if (projectId != null)
-                    issuesRequest += $"&project_id={projectId}";
-                else
-                    this._logger.Error("Find redmine project id error. Id = null. ({projectSysName})", projectSysName);
-            }
-
-            if (!string.IsNullOrEmpty(versionText))
-            {
-                if (string.IsNullOrEmpty(projectSysName))
+                catch (Exception e)
                 {
-                    this._logger.Error("Request data by version without project information {versionText}", versionText);
-                }
-                else
-                {
-                    var versionId = await this.GetVersionId(projectSysName, versionText);
-                    if (versionId != null)
-                        issuesRequest += $"&fixed_version_id={versionId}";
-                    else
-                        this._logger.Error("Find redmine version id error. Id = null. (Project {projectSysName} Vesion {versionText})", projectSysName, versionText);
+                    this._logger
+                        .ForContext("issue", issue, destructureObjects: true)
+                        .Error(e, "Error add/modify issue while start redmine {num}", issue.Num);
+                    throw;
                 }
             }
 
-            var redmineIssues = new List<RedmineIssue>();
+            try
+            {
+                if (this._dbContext.ChangeTracker.HasChanges())
+                    await this._dbContext.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                this._logger.Error(e, "Error update issues while start redmine");
+                throw;
+            }
+            return issuesChanged;
+        }
+
+        /// <summary> Get last updated issues </summary>
+        /// <remarks>Has a little error and always return last issue (read comments iGetIssuesByDateDirect)</remarks>
+        private async Task<List<DbeIssue>> GetUpdatedIssues()
+        {
+            var lastUpdateOn = await this._dbContext.Issues.AsNoTracking().MaxAsync(x => (DateTime?)x.UpdateOn);
+            var allChangedIssues = new List<DbeIssue>();
+            if (lastUpdateOn == null)
+            {
+                var veryOldDate = new DateTime(1800, 1, 1, 0, 0, 0);
+                var lastIssue = await this.GetIssuesByDateDirect(
+                    veryOldDate,
+                    isSingle: true);
+                if (lastIssue.Count != 0)
+                {
+                    var toDate = lastIssue.Single().UpdateOn;
+                    // Load some iteration because I don't need more
+                    for (var iter = 0; iter < 4; iter++)
+                    {
+                        var issues = await this.GetIssuesByDateDirect(veryOldDate, toDate);
+                        // remove duplicates (maybe with the same date)
+                        issues.RemoveAll(x => allChangedIssues.Any(xx => xx.Num == x.Num));
+                        allChangedIssues.AddRange(issues);
+                        toDate = issues.Min(x => x.UpdateOn);
+                    }
+                }
+            }
+            else
+            {
+                // maybe need to add 1 second that don't get last issue, but redmine has a little error (read comments in GetIssuesByDateDirect)
+                allChangedIssues.AddRange(await this.GetIssuesByDateDirect(lastUpdateOn.Value));
+            }
+
+            // Restore bot fields
+            var projects = await this._dbContext.ProjectSettings.ToListAsync();
+            var users = await this._dbContext.UsersInfo.Where(x => !string.IsNullOrEmpty(x.RedmineName)).ToListAsync();
+            foreach (var issue in allChangedIssues)
+            {
+                //IssueStatus
+                issue.IssueStatus = issue.RedmineStatus.ToLower() switch
+                {
+                    "черновик" => EnumIssueStatus.Draft,
+                    "анализируется" => EnumIssueStatus.Draft,
+                    "готов к работе" => EnumIssueStatus.Ready,
+                    "переоткрыт" => EnumIssueStatus.Ready,
+                    "в работе" => EnumIssueStatus.Developing,
+                    "решен" => EnumIssueStatus.Resolved,
+                    "на тестировании" => EnumIssueStatus.OnTesting,
+                    "проверен" => EnumIssueStatus.Finished,
+                    "на документировании" => EnumIssueStatus.Finished,
+                    "закрыт" => EnumIssueStatus.Finished,
+                    var strStatus => ((Func<EnumIssueStatus>)(() => {
+                        this._logger.Warning("Undefined redmine status {redmineStatus}", strStatus);
+                        return EnumIssueStatus.NotDefined;
+                    }))()
+                };
+
+                //ProjectSysName
+                var projectSttings = projects
+                    .Where(x => x.RedmineProjectName.ToLower() == issue.RedmineProjectName.ToLower())
+                    .ToList();
+                if (projectSttings.Count == 1)
+                    issue.ProjectSysName = projectSttings.Single().ProjectSysName;
+                else if (projectSttings.Count > 1)
+                {
+                    this._logger.Error("Error find project name (maybe some sysProjects contains in one RemineProject, need check version). Not realized yet. {remineProject}=>{@foundSettings}",
+                        issue.RedmineProjectName,
+                        projectSttings.Select(x => x.ProjectSysName).ToArray());
+                }
+
+                //UserBotIdAssignOn
+                var assignUsers = users.Where(x => x.RedmineName != null && x.RedmineName.ToLower() == issue.RedmineAssignOn.ToLower()).ToList();
+                if (assignUsers.Count == 1)
+                    issue.UserBotIdAssignOn = assignUsers.Single().BotUserId;
+                else if (assignUsers.Count > 1)
+                {
+                    this._logger.Error("Error find user. {redmineUser}=>{@foundUsers}",
+                        issue.RedmineAssignOn,
+                        assignUsers.Select(x => x.BotUserId).ToArray());
+                }
+            }
+
+            return allChangedIssues;
+        }
+
+        /// <summary> Get issues from Redmine by date. It's not fill "other information" like UserBotId and so on. </summary>
+        /// <remarks>Has a little error and "always" return last issue</remarks>
+        private async Task<List<DbeIssue>> GetIssuesByDateDirect(DateTime dateFrom, DateTime? dateTo = null, bool isSingle = false)
+        {
+            // updated_on=%3E%3D2020-01-01  updated_on= >=2020-01-01
+            // updated_on=%3C%3D <=
+
+            // this approach has a little error. Redmine returns issue updated earlier than I query.
+            // for example
+            // Last issue updated 2021-01-01T10:00:00
+            // if I request updateon=>=2021-01-01T10:00:01 Remine return last issue
+            // if I request updateon=>=2021-01-01T10:00:02 Remine doesn't return last issue
+            // strange. But I filter by date in "caller"
+
+            var issuesRequest = "issues.xml?sort=updated_on:desc&limit=" + (isSingle ? "1" : "100")
+                                + "&updated_on=%3E%3D" + dateFrom.ToString("yyyy-MM-ddTHH:mm:ss") + "Z";
+            if (dateTo != null)
+                issuesRequest += "&updated_on=%3C%3D" + dateTo.Value.ToString("yyyy-MM-ddTHH:mm:ss") + "Z";
 
             var xIssues = (await this.ExecuteRequest(issuesRequest)).Element("issues");
+            var issues = new List<DbeIssue>();
+            // Find Redmine information
             if (xIssues != null)
             {
-                var findUserCache = new ConcurrentDictionary<string, string?>();
                 foreach (var xIssue in xIssues.Elements("issue"))
                 {
                     try
                     {
-                        redmineIssues.Add(await this.CreateIssueByXmlElement(xIssue, findUserCache));
+                        issues.Add(this.CreateStubIssueByXmlElement(xIssue));
                     }
                     catch (Exception e)
                     {
@@ -207,41 +325,37 @@ namespace RedmineService.Redmine
             else
             {
                 this._logger.Information("Issues not found. Request {issuesRequest}", issuesRequest);
+                return new List<DbeIssue>();
             }
 
-            return redmineIssues;
+            return issues;
         }
 
-        /// <summary> Create single RedmineIssue by xml-information </summary>
-        /// <param name="xIssue">Xml-issue</param>
-        /// <param name="findUserCache">Cache for finding userBotId</param>
-        private async Task<RedmineIssue> CreateIssueByXmlElement(XElement xIssue, ConcurrentDictionary<string, string?> findUserCache)
+
+        /// <summary> CreateDbeIssue without information about user, bot project and so on </summary>
+        /// <param name="xIssue">Xml issue information</param>
+        /// <returns></returns>
+        private DbeIssue CreateStubIssueByXmlElement(XElement xIssue)
         {
-            var issue = new RedmineIssue
+            var issue = new DbeIssue
             {
                 Num = xIssue.Element("id")?.Value ?? "<not defined>",
                 Subject = xIssue.Element("subject")?.Value ?? "",
                 Description = xIssue.Element("description")?.Value ?? "",
-                Status = xIssue.Element("status")?.Attribute("name")?.Value ?? "<not defined>",
+                RedmineStatus = xIssue.Element("status")?.Attribute("name")?.Value ?? "",
+                RedmineProjectName = xIssue.Element("project")?.Attribute("name")?.Value ?? "",
                 Version = xIssue.Element("fixed_version")?.Attribute("name")?.Value ?? "",
                 CreatorName = xIssue.Element("author")?.Attribute("name")?.Value ?? "",
-                AssignOn = xIssue.Element("assigned_to")?.Attribute("name")?.Value ?? ""
+                RedmineAssignOn = xIssue.Element("assigned_to")?.Attribute("name")?.Value ?? "",
+                RedminePriority = xIssue.Element("priority")?.Attribute("name")?.Value ?? ""
             };
 
             var resolution = xIssue.Element("custom_fields")
                 ?.Elements("custom_field")
                 .FirstOrDefault(x => x.Attribute("name")?.Value == "Резолюция")
                 ?.Value;
-            if (!string.IsNullOrEmpty(resolution))
-                issue.Resolution = resolution;
+            issue.Resolution = resolution ?? "";
 
-            // maybe find human-name
-            var redmineProjectName = xIssue.Element("project")?.Attribute("name")?.Value ?? "";
-            issue.ProjectName = redmineProjectName;
-
-            var projectSetting = await this._dbContext.ProjectSettings.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.RedmineProjectName == redmineProjectName);
-            issue.ProjectSysName = projectSetting?.ProjectSysName ?? "<not defined>";
 
             var updateOnStr = xIssue.Element("updated_on")?.Value;
             if (updateOnStr != null)
@@ -250,17 +364,19 @@ namespace RedmineService.Redmine
                 var dt = DateTime.ParseExact(updateOnStr, "yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
                 issue.UpdateOn = dt;
             }
-
-            if (!findUserCache.TryGetValue(issue.AssignOn, out var botUserId))
+            var createOnStr = xIssue.Element("created_on")?.Value;
+            if (createOnStr != null)
             {
-                var userInfo = await this._dbContext.UsersInfo.AsNoTracking().FirstOrDefaultAsync(x => x.RedmineName == issue.AssignOn);
-                var userBotId = userInfo?.RedmineName;
-                findUserCache.TryAdd(issue.AssignOn, userBotId);
-                issue.AssignOnUserBotId = userBotId;
+                //2020-03-18T12:48:35Z
+                var dt = DateTime.ParseExact(createOnStr, "yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
+                issue.CreateOn = dt;
             }
+           
 
             return issue;
         }
+
+        #region Old functions. It's a pity to delete.
 
         /// <summary> Get user id by botId </summary>
         /// <param name="userBotId">Bot user id</param>
@@ -303,8 +419,8 @@ namespace RedmineService.Redmine
 
                     break;
                 }
-                
-                var userName = (xUser.Element("firstname")?.Value + " " + 
+
+                var userName = (xUser.Element("firstname")?.Value + " " +
                                 xUser.Element("lastname")?.Value).Trim().ToLower();
                 if (userName == redmineNameLower)
                 {
@@ -421,7 +537,7 @@ namespace RedmineService.Redmine
             projectSettings.RedmineProjectId = id;
 
             await this._dbContext.SaveChangesAsync();
-            
+
             return id;
         }
 
@@ -484,12 +600,12 @@ namespace RedmineService.Redmine
             return id;
         }
 
-
-        //http://srm.aksiok.ru/issue_statuses.xml
         /// <summary> Get status id by name </summary>
         /// <param name="statusName">Status name</param>
         private async Task<int?> GetStatusId(string statusName)
         {
+            //http://srm.aksiok.ru/issue_statuses.xml
+
             //maybe need caching
             this._logger.Warning("Very long getting status id");
 
@@ -535,6 +651,6 @@ namespace RedmineService.Redmine
             // need caching value?
             return id;
         }
-
+        #endregion
     }
 }
