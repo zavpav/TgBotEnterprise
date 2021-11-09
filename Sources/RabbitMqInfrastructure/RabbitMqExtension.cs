@@ -49,7 +49,7 @@ namespace RabbitMqInfrastructure
                         }
 
                         logger
-                            .ForContext("message", message)
+                            .ForContext("message", message, true)
                             .ErrorWithEventContext(eventId, e, "Error while processing message {actionName}", actionName);
                         throw;
                     }

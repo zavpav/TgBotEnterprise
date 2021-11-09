@@ -148,8 +148,8 @@ namespace RabbitMqInfrastructure
             messageHeaders.TryGetValue("ActionName", out var actionName);
             
             this._logger
-                .ForContext("IncomeMessage", requestMessage)
-                .ForContext("MessageHeaders", messageHeaders)
+                .ForContext("IncomeMessage", requestMessage, true)
+                .ForContext("MessageHeaders", messageHeaders, true)
                 .InformationWithEventContext(eventId, "ProcessDirectRequest action=({actionName})", actionName);
             
             if (string.IsNullOrEmpty(actionName))
@@ -171,7 +171,7 @@ namespace RabbitMqInfrastructure
                 }
 
                 this._logger
-                    .ForContext("ResponceMessage", responseMessage)
+                    .ForContext("ResponceMessage", responseMessage, true)
                     .InformationWithEventContext(eventId, "Processed ProcessDirectRequest for action ({actionName})", actionName);
 
                 var msgBody = Encoding.UTF8.GetBytes(responseMessage);

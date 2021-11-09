@@ -141,7 +141,7 @@ namespace MainBotService.RabbitCommunication
         {
             // Validating user
             this._logger
-                .ForContext("incomeMessage", incomeMessage)
+                .ForContext("incomeMessage", incomeMessage, true)
                 .Information(incomeMessage, "Processing message. UserBotId: '{UserBotId}' -- '{incomeMessageText}'",
                     incomeMessage.BotUserId,
                     incomeMessage.MessageText);
@@ -158,7 +158,7 @@ namespace MainBotService.RabbitCommunication
             if (incomeMessage.IsEdited)
             {
                 this._logger
-                    .ForContext("incomeMessage", incomeMessage)
+                    .ForContext("incomeMessage", incomeMessage, true)
                     .Information(incomeMessage, "Message edited. Now ignoring. {incomeMessageText} ", incomeMessage.MessageText);
 
                 return;
@@ -170,7 +170,7 @@ namespace MainBotService.RabbitCommunication
             if (isUnfinishedConversationExist)
             {
                 this._logger
-                    .ForContext("incomeMessage", incomeMessage)
+                    .ForContext("incomeMessage", incomeMessage, true)
                     .Information(incomeMessage, "Unfinished conversation found. Message processed. UserBotId '{UserBotId}' '{incomeMessageText}'",
                         incomeMessage.BotUserId,
                         incomeMessage.MessageText);
@@ -183,7 +183,7 @@ namespace MainBotService.RabbitCommunication
             if (isNewConversationStarted)
             {
                 this._logger
-                    .ForContext("incomeMessage", incomeMessage)
+                    .ForContext("incomeMessage", incomeMessage, true)
                     .Information(incomeMessage, "Start new conversation. Message processed. UserBotId '{UserBotId}' '{incomeMessageText}'",
                         incomeMessage.BotUserId,
                         incomeMessage.MessageText);
@@ -191,7 +191,7 @@ namespace MainBotService.RabbitCommunication
             }
 
             this._logger
-                .ForContext("incomeMessage", incomeMessage)
+                .ForContext("incomeMessage", incomeMessage, true)
                 .Warning("Message unprocessed by conversations.");
 
             await this._rabbitService.PublishInformation(RabbitMessages.TelegramOutgoingMessage,

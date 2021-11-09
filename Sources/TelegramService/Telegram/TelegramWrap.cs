@@ -93,7 +93,8 @@ namespace TelegramService.Telegram
                                     UserName = tgMsg.From.Username, 
                                     LastName = tgMsg.From.LastName,
                                     FirstName = tgMsg.From.FirstName
-                                    }
+                                    },
+                                true
                             )
                             .Information(messageData, "Process telegram message {@incomeMessage}", messageData);
 
@@ -231,7 +232,7 @@ namespace TelegramService.Telegram
         public async Task SendMessage(TelegramOutgoingMessage messageData)
         {
             this._logger
-                .ForContext("outgingMessage", messageData)
+                .ForContext("outgingMessage", messageData, true)
                 .Information(messageData, "Sending message to user {messageDataId}", messageData.ChatId);
             var msg = await this._telegramBot.SendTextMessageAsync(messageData.ChatId, messageData.Message, replyToMessageId: messageData.MessageId ?? 0);
             //msg.MessageId
@@ -244,7 +245,7 @@ namespace TelegramService.Telegram
             if (message.ChatId == null)
             {
                 this._logger
-                    .ForContext("message", message)
+                    .ForContext("message", message, true)
                     .Error("NotImplementing yet. ChatId=null. Need to fing defaultChatId in database and send it to defaultChat");
                 return;
             }
@@ -276,12 +277,12 @@ namespace TelegramService.Telegram
             List<BugTrackerIssue> issues)
         {
             var sb = new StringBuilder();
-            sb.Append($"<b>Версия по проекту {issues.First().ProjectName.EscapeHtml()}. Версия {version.EscapeHtml()}.</b>\n");
+            sb.Append($"<b>Версия по проекту {issues.First().RedmineProjectName.EscapeHtml()}. Версия {version.EscapeHtml()}.</b>\n");
             sb.Append("\n");
 
             
             foreach (var issuesByStatus in issues
-                .GroupBy(x => x.Status)
+                .GroupBy(x => x.RedmineStatus)
                 .Distinct()
                 .OrderBy(x =>
                     x.Key.ToLower() == "готов к работе" ? 1 :
@@ -295,9 +296,9 @@ namespace TelegramService.Telegram
                 sb.Append($"\nСтатус: <b>{issuesByStatus.Key.EscapeHtml()}</b>\n");
                 foreach (var issue in issuesByStatus)
                 {
-                    sb.Append(this.DefineRoleIconByUser(issue.AssignOnUserBotId));
+                    sb.Append(this.DefineRoleIconByUser(issue.UserBotIdAssignOn));
                     sb.Append($"<a href=\"{issue.Num}\"> {issue.Subject.EscapeHtml()}</a>\n");
-                    sb.Append($"<i>Назначена: {issue.AssignOn.EscapeHtml()}</i>\n\n");
+                    sb.Append($"<i>Назначена: {issue.RedmineAssignOn.EscapeHtml()}</i>\n\n");
                 }
             }
 
