@@ -50,7 +50,8 @@ namespace RedmineService.Redmine
             return await HttpExtension.LoadXmlFromRequest(uri, 
                 TimeSpan.FromSeconds(9), 
                 this.AddCredential,
-                this.UpdateCredential);
+                this.UpdateCredential,
+                this._logger);
         }
 
 
@@ -165,7 +166,7 @@ namespace RedmineService.Redmine
                 if (projectId != null)
                     issuesRequest += $"&project_id={projectId}";
                 else
-                    this._logger.Error("Find redmine project id error. Id = null");
+                    this._logger.Error("Find redmine project id error. Id = null. ({projectSysName})", projectSysName);
             }
 
             if (!string.IsNullOrEmpty(versionText))
@@ -178,9 +179,9 @@ namespace RedmineService.Redmine
                 {
                     var versionId = await this.GetVersionId(projectSysName, versionText);
                     if (versionId != null)
-                        issuesRequest += $"&fixed_version={versionId}";
+                        issuesRequest += $"&fixed_version_id={versionId}";
                     else
-                        this._logger.Error("Find redmine version id error. Id = null");
+                        this._logger.Error("Find redmine version id error. Id = null. (Project {projectSysName} Vesion {versionText})", projectSysName, versionText);
                 }
             }
 
@@ -371,6 +372,12 @@ namespace RedmineService.Redmine
             if (projectSettings.RedmineProjectId != null)
                 return projectSettings.RedmineProjectId;
 
+            if (projectSettings.RedmineProjectName == null)
+            {
+                this._logger.Error("Undefined project for find {projectSysName}", projectSysName);
+                return null;
+            }
+
             // don't want to think :) get all projects from redmine and try to find id. it's executed very seldom
             string? strId = null;
 
@@ -384,7 +391,7 @@ namespace RedmineService.Redmine
             foreach (var xProj in xAllProjects.Elements("project"))
             {
                 var projectLowerName = xProj.Element("name")?.Value.ToLower();
-                if (projectLowerName == projectSysName.ToLower())
+                if (projectLowerName == projectSettings.RedmineProjectName.ToLower())
                 {
                     strId = xProj.Element("id")?.Value;
                     if (strId == null)

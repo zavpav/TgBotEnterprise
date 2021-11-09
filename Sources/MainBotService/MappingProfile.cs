@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using MainBotService.Database;
+using MainBotService.RabbitCommunication.Telegram;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.MainBot;
 using RabbitMessageCommunication.WebAdmin;
@@ -23,6 +24,7 @@ namespace MainBotService
 
             CreateMap<DbeProject, MainBotProjectInfo>();
 
+            CreateMap<TelegramIncomeMessage, OutgoingPreMessageInfo>();
         }
     }
 }

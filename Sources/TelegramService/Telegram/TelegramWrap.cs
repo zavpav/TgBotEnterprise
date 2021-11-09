@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
+using RabbitMessageCommunication.BugTracker;
 using RabbitMqInfrastructure;
 using Serilog;
 using Telegram.Bot;
@@ -20,6 +23,14 @@ namespace TelegramService.Telegram
         Task Initialize();
         Task SendMessage(TelegramOutgoingMessage messageData);
         void ClearUserCache();
+
+        /// <summary> Send issues to user </summary>
+        /// <remarks>
+        /// Formatting must be in telegram service because
+        /// we might have a lot of issues (and we have to split this information for several messages)
+        /// we have a special formatting for issues
+        /// </remarks>
+        Task SendIssuesMessage(TelegramOutgoingIssuesMessage message);
     }
 
     public class TelegramWrap : ITelegramWrap
@@ -210,19 +221,117 @@ namespace TelegramService.Telegram
 
         #endregion
 
+
+
         public Task Initialize()
         {
             return Task.CompletedTask;
         }
 
-
-
-
         public async Task SendMessage(TelegramOutgoingMessage messageData)
         {
-            this._logger.Information(messageData, "Sending message to user {@messageData}", messageData);
+            this._logger
+                .ForContext("outgingMessage", messageData)
+                .Information(messageData, "Sending message to user {messageDataId}", messageData.ChatId);
             var msg = await this._telegramBot.SendTextMessageAsync(messageData.ChatId, messageData.Message, replyToMessageId: messageData.MessageId ?? 0);
             //msg.MessageId
+        }
+
+        public async Task SendIssuesMessage(TelegramOutgoingIssuesMessage message)
+        {
+            await Task.Yield();
+
+            if (message.ChatId == null)
+            {
+                this._logger
+                    .ForContext("message", message)
+                    .Error("NotImplementing yet. ChatId=null. Need to fing defaultChatId in database and send it to defaultChat");
+                return;
+            }
+
+            var projects = message.Issues
+                .GroupBy(x => x.ProjectSysName);
+
+            foreach (var issuesByProject in projects)
+            {
+                foreach (var issuesByVersion in issuesByProject.GroupBy(x => x.Version))
+                {
+                    var htmlString = this.FormatHtmlSingleVersionMessage(issuesByProject.Key, 
+                        issuesByVersion.Key, 
+                        issuesByVersion.ToList());
+
+                    await this._telegramBot.SendTextMessageAsync(message.ChatId, htmlString, ParseMode.Html);
+                }
+            }
+
+        }
+
+        /// <summary> Format issues by proect and version </summary>
+        /// <param name="projectSysName">Sys name of project</param>
+        /// <param name="version">Version name</param>
+        /// <param name="issues">List of issues</param>
+        /// <returns>Formatted string for message as html-string</returns>
+        private string FormatHtmlSingleVersionMessage(string projectSysName, 
+            string version, 
+            List<BugTrackerIssue> issues)
+        {
+            var sb = new StringBuilder();
+            sb.Append($"<b>Версия по проекту {issues.First().ProjectName.EscapeHtml()}. Версия {version.EscapeHtml()}.</b>\n");
+            sb.Append("\n");
+
+            
+            foreach (var issuesByStatus in issues
+                .GroupBy(x => x.Status)
+                .Distinct()
+                .OrderBy(x =>
+                    x.Key.ToLower() == "готов к работе" ? 1 :
+                    x.Key.ToLower() == "в работе" ? 3 :
+                    x.Key.ToLower() == "переоткрыт" ? 2 :
+                    x.Key.ToLower() == "на тестировании" ? 4 :
+                    x.Key.ToLower() == "решен" ? 5 : 10
+                )
+            )
+            {
+                sb.Append($"\nСтатус: <b>{issuesByStatus.Key.EscapeHtml()}</b>\n");
+                foreach (var issue in issuesByStatus)
+                {
+                    sb.Append(this.DefineRoleIconByUser(issue.AssignOnUserBotId));
+                    sb.Append($"<a href=\"{issue.Num}\"> {issue.Subject.EscapeHtml()}</a>\n");
+                    sb.Append($"<i>Назначена: {issue.AssignOn.EscapeHtml()}</i>\n\n");
+                }
+            }
+
+            return sb.ToString();
+
+        }
+
+        /// <summary> Define icon for user </summary>
+        private string DefineRoleIconByUser(string? botUserId)
+        {
+            if (string.IsNullOrEmpty(botUserId))
+            {
+                return "㊙️";
+            }
+
+            return "🖥";
+            //switch (usr.Role)
+            //{
+            //    case EnumUserRole.Developer:
+            //        msg += "🖥";
+            //        break;
+            //    case EnumUserRole.Tester:
+            //        msg += "⚽️";
+            //        break;
+            //    case EnumUserRole.Boss:
+            //        msg += "💶";
+            //        break;
+            //    case EnumUserRole.Analist:
+            //        msg += "📡";
+            //        break;
+            //    default:
+            //        msg += "㊙️";
+            //        break;
+            //}
         }
     }
 }

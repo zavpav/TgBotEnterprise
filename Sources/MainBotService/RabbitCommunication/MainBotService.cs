@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 using AutoMapper;
 using CommonInfrastructure;
 using MainBotService.Database;
-using MainBotService.RabbitCommunication.TelegramDialoges;
+using MainBotService.RabbitCommunication.Telegram;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
+using RabbitMessageCommunication.BugTracker;
 using RabbitMessageCommunication.MainBot;
 using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
@@ -22,6 +23,7 @@ namespace MainBotService.RabbitCommunication
     {
         private readonly INodeInfo _nodeInfo;
         private readonly ILogger _logger;
+        private readonly IGlobalEventIdGenerator _eventIdGenerator;
         private readonly IRabbitService _rabbitService;
         private readonly IMapper _mapper;
         private readonly BotServiceDbContext _dbContext;
@@ -31,6 +33,7 @@ namespace MainBotService.RabbitCommunication
 
         public MainBotService(INodeInfo nodeInfo, 
             ILogger logger,
+            IGlobalEventIdGenerator eventIdGenerator,
             IRabbitService rabbitService,
             IMapper mapper,
             Lazy<IEnumerable<ITelegramConversation>> telegraConversations,
@@ -38,6 +41,7 @@ namespace MainBotService.RabbitCommunication
         {
             this._nodeInfo = nodeInfo;
             this._logger = logger;
+            this._eventIdGenerator = eventIdGenerator;
             this._rabbitService = rabbitService;
             this._mapper = mapper;
             this._dbContext = dbContext;
@@ -135,30 +139,84 @@ namespace MainBotService.RabbitCommunication
         /// <param name="rabbitMessageHeaders">Rabbit headers</param>
         private async Task ProcessIncomeTelegramMessage(TelegramIncomeMessage incomeMessage, IDictionary<string, string> rabbitMessageHeaders)
         {
-            await this.UpdateUserInfoFromTelegram(incomeMessage.BotUserId);
+            // Validating user
+            this._logger
+                .ForContext("incomeMessage", incomeMessage)
+                .Information(incomeMessage, "Processing message. UserBotId: '{UserBotId}' -- '{incomeMessageText}'",
+                    incomeMessage.BotUserId,
+                    incomeMessage.MessageText);
 
+            await this.UpdateUserInfoFromTelegram(incomeMessage.BotUserId);
+            var isValidUser = await this._telegramProcessor.CheckUser(incomeMessage);
+            if (!isValidUser)
+            {
+                this._logger.Information("User is inactivated. UserBotId '{UserBotId}'", incomeMessage.BotUserId);
+                return;
+            }
+
+            // Stub? I didn't decide what I want to do with edited messages
             if (incomeMessage.IsEdited)
             {
-                this._logger.Information(incomeMessage, "Message edited. Now ignoring. {@incomeMessage} ", incomeMessage);
+                this._logger
+                    .ForContext("incomeMessage", incomeMessage)
+                    .Information(incomeMessage, "Message edited. Now ignoring. {incomeMessageText} ", incomeMessage.MessageText);
+
                 return;
             }
 
-            this._logger.Information(incomeMessage, "Processing message. {@incomeMessage} ", incomeMessage);
-            var responseMessages = await this._telegramProcessor.ProcessIncomeMessage(incomeMessage).ConfigureAwait(false);
+            var outgoingPreMessageInfo = this._mapper.Map<OutgoingPreMessageInfo>(incomeMessage);
 
-            if (responseMessages.Count == 0)
+            var isUnfinishedConversationExist = await this._telegramProcessor.TryToContinueConversation(outgoingPreMessageInfo, incomeMessage);
+            if (isUnfinishedConversationExist)
             {
-                this._logger.Information(incomeMessage, "Nothing to send");
+                this._logger
+                    .ForContext("incomeMessage", incomeMessage)
+                    .Information(incomeMessage, "Unfinished conversation found. Message processed. UserBotId '{UserBotId}' '{incomeMessageText}'",
+                        incomeMessage.BotUserId,
+                        incomeMessage.MessageText);
+
                 return;
             }
 
-            foreach (var outgoingMessage in responseMessages)
+
+            var isNewConversationStarted = await this._telegramProcessor.TryToStartNewCoversation(outgoingPreMessageInfo, incomeMessage);
+            if (isNewConversationStarted)
             {
-                this._logger.Information(outgoingMessage, "Send message through telegram. {@outgoingMessage}", outgoingMessage);
-                await this._rabbitService.PublishInformation(
-                    RabbitMessages.TelegramOutgoingMessage,
-                    outgoingMessage);
+                this._logger
+                    .ForContext("incomeMessage", incomeMessage)
+                    .Information(incomeMessage, "Start new conversation. Message processed. UserBotId '{UserBotId}' '{incomeMessageText}'",
+                        incomeMessage.BotUserId,
+                        incomeMessage.MessageText);
+                return;
             }
+
+            this._logger
+                .ForContext("incomeMessage", incomeMessage)
+                .Warning("Message unprocessed by conversations.");
+
+            await this._rabbitService.PublishInformation(RabbitMessages.TelegramOutgoingMessage,
+                new TelegramOutgoingMessage
+                {
+                    SystemEventId = incomeMessage.SystemEventId,
+                    Message = "Not found action " + incomeMessage.MessageText,
+                    ChatId = incomeMessage.ChatId
+                });
+
+            //var responseMessages = await this._telegramProcessor.ProcessIncomeMessage(incomeMessage).ConfigureAwait(false);
+
+            //if (responseMessages.Count == 0)
+            //{
+            //    this._logger.Information(incomeMessage, "Nothing to send");
+            //    return;
+            //}
+
+            //foreach (var outgoingMessage in responseMessages)
+            //{
+            //    this._logger.Information(outgoingMessage, "Send message through telegram. {@outgoingMessage}", outgoingMessage);
+            //    await this._rabbitService.PublishInformation(
+            //        RabbitMessages.TelegramOutgoingMessage,
+            //        outgoingMessage);
+            //}
         }
 
         #region User data updates
@@ -264,6 +322,44 @@ namespace MainBotService.RabbitCommunication
         }
 
         #endregion
+
+
+
+
+        public string GetNextEventId()
+        {
+            return this._eventIdGenerator.GetNextEventId();
+        }
+
+        public Task PublishMessage<T>(string actionName, T outgoingMessage, EnumInfrastructureServicesType? subscriberServiceType = null)
+            where T : IRabbitMessage
+        {
+            return this._rabbitService.PublishInformation(actionName, outgoingMessage, subscriberServiceType);
+        }
+
+        public Task<List<DbeProject>> Projects()
+        {
+            return this._dbContext.Projects.ToListAsync();
+        }
+        
+        public async Task<List<BugTrackerIssue>> GetBugTrackerIssues(string projectSysName, string? version)
+        {
+            var eventId = this._eventIdGenerator.GetNextEventId();
+
+            var requestMessage = new BugTrackerTasksRequestMessage(eventId)
+            {
+                FilterProjectSysName = projectSysName,
+                FilterVersionText = version
+            };
+
+            var responseMessage = await this._rabbitService.DirectRequestTo<BugTrackerTasksRequestMessage, BugTrackerTasksResponseMessage>(
+                EnumInfrastructureServicesType.BugTracker,
+                RabbitMessages.BugTrackerRequestIssues,
+                requestMessage
+            );
+
+            return responseMessage.Issues.ToList();
+        }
 
     }
 }

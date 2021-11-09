@@ -15,7 +15,7 @@ namespace RedmineService
                 .ForMember(x => x.RedmineName, s => s.MapFrom(x => x.RedmineUserName))
                 .ForMember(x => x.WhoIsThis, s => s.MapFrom(x => x.WhoIsThis));
 
-            CreateMap<RedmineIssue, BugTrackerTasksResponseMessage.BugTrackerIssue>();
+            CreateMap<RedmineIssue, BugTrackerIssue>();
         }
 
     }

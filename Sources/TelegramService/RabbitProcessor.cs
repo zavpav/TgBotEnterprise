@@ -62,7 +62,17 @@ namespace TelegramService.RabbitCommunication
                 this.ProcessUpdateUserInformation,
                 this._logger);
 
+            this._rabbitService.Subscribe<TelegramOutgoingIssuesMessage>(EnumInfrastructureServicesType.Main, 
+                RabbitMessages.TelegramOutgoingIssuesMessage,
+                this.ProcessOutgoingIssueMessage,
+                this._logger);
+
             this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
+        }
+
+        private Task ProcessOutgoingIssueMessage(TelegramOutgoingIssuesMessage message, IDictionary<string, string> rabbitMessageHeaders)
+        {
+            return this._telegramWrap.SendIssuesMessage(message);
         }
 
         private Task ProcessOutgoingMessage(TelegramOutgoingMessage messageData, IDictionary<string, string> rabbitMessageHeaders)

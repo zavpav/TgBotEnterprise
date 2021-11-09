@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Serilog;
 
-namespace MainBotService.RabbitCommunication.TelegramDialoges
+namespace MainBotService.RabbitCommunication.Telegram
 {
     /// <summary> First simple conversation </summary>
     public class MyTasksConversation : ITelegramConversation
@@ -25,7 +25,8 @@ namespace MainBotService.RabbitCommunication.TelegramDialoges
             return Task.FromResult(isConversation);
         }
 
-        public Task<string?> NextConversationStep(string step, string messageText)
+        public Task<string?> NextConversationStep(string step, OutgoingPreMessageInfo outgoingPreMessageInfo,
+            string messageText)
         {
             this._logger.Information("MyTasksConversation");
             return Task.FromResult((string?)null);

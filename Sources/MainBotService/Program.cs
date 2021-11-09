@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 using CommonInfrastructure;
 using MainBotService.Database;
 using MainBotService.RabbitCommunication;
-using MainBotService.RabbitCommunication.TelegramDialoges;
+using MainBotService.RabbitCommunication.Telegram;
 using Serilog;
 
 namespace MainBotService

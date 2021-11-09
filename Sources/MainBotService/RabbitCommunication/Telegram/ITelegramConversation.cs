@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace MainBotService.RabbitCommunication.TelegramDialoges
+namespace MainBotService.RabbitCommunication.Telegram
 {
     /// <summary> Telegram conversation </summary>
     public interface ITelegramConversation
@@ -11,7 +11,11 @@ namespace MainBotService.RabbitCommunication.TelegramDialoges
 
         /// <summary> Restore conversation </summary>
         /// <param name="step">Step of conversation</param>
+        /// <param name="outgoingPreMessageInfo">Information about message</param>
         /// <param name="messageText">Text from telegram message</param>
-        Task<string?> NextConversationStep(string step, string messageText);
+        /// <returns>Next step name. null - conversation is finished</returns>
+        Task<string?> NextConversationStep(string step, 
+            OutgoingPreMessageInfo outgoingPreMessageInfo,
+            string messageText);
     }
 }

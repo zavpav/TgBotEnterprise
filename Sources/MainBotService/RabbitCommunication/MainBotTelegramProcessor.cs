@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CommonInfrastructure;
-using MainBotService.RabbitCommunication.TelegramDialoges;
+using MainBotService.RabbitCommunication.Telegram;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.BugTracker;
@@ -34,6 +34,7 @@ namespace MainBotService.RabbitCommunication
                 this._logger = logger;
             }
 
+
             public async Task<List<TelegramOutgoingMessage>> ProcessIncomeMessage(TelegramIncomeMessage incomeMessage)
             {
                 var user = await this._owner._dbContext.UsersInfo.FirstAsync(x => x.BotUserId == incomeMessage.BotUserId);
@@ -53,23 +54,6 @@ namespace MainBotService.RabbitCommunication
                         };
                     else 
                         return new List<TelegramOutgoingMessage>(); // Ignore group messages
-                }
-
-                //find uncomplited conversation
-                //..
-
-                //find conversation by first message
-                var conversations = this._telegraConversations.Value.ToList();
-                foreach (var conversation in conversations)
-                {
-                    if (await conversation.IsStartingMessage(incomeMessage.MessageText))
-                    {
-                        var nextStepName = await conversation.NextConversationStep("first", incomeMessage.MessageText);
-                        if (nextStepName != null)
-                        {
-                            //..
-                        }
-                    }
                 }
 
                 // others
@@ -132,6 +116,78 @@ namespace MainBotService.RabbitCommunication
 
             }
 
+
+            /// <summary> Checking user is validated </summary>
+            public async Task<bool> CheckUser(TelegramIncomeMessage incomeMessage)
+            {
+                var user = await this._owner._dbContext.UsersInfo.FirstAsync(x => x.BotUserId == incomeMessage.BotUserId);
+
+                // "Inactive user"
+                if (!user.IsActive)
+                {
+                    if (incomeMessage.IsDirectMessage)
+                    {
+                        var outgoingMessage = new TelegramOutgoingMessage
+                        {
+                            SystemEventId = incomeMessage.SystemEventId,
+                            Message = "Who are you? " + incomeMessage.MessageText,
+                            ChatId = incomeMessage.ChatId
+                        };
+
+                        this._logger.ForContext("outgoingMessage", outgoingMessage)
+                            .Information(outgoingMessage, "User is inactivated. Send message through telegram. {outgoingMessageText}", outgoingMessage.Message);
+
+                        await this._owner._rabbitService.PublishInformation(
+                            RabbitMessages.TelegramOutgoingMessage,
+                            outgoingMessage);
+                    }
+                    return false;
+                }
+
+                return true;
+            }
+
+
+            /// <summary> Try to continue unfinished conversation </summary>
+            /// <param name="outgoingPreMessageInfo">Information about message</param>
+            /// <param name="incomeMessage">Income telegram message</param>
+            /// <returns>true - exists unfinished conversation. false - conversation is not found</returns>
+            public Task<bool> TryToContinueConversation(OutgoingPreMessageInfo outgoingPreMessageInfo,
+                TelegramIncomeMessage incomeMessage)
+            {
+                return Task.FromResult(false);
+            }
+
+            /// <summary> Try to start new conversation </summary>
+            /// <param name="outgoingPreMessageInfo">Information about message</param>
+            /// <param name="incomeMessage">Income telegram message</param>
+            /// <returns>true - message processed</returns>
+            public async Task<bool> TryToStartNewCoversation(OutgoingPreMessageInfo outgoingPreMessageInfo,
+                TelegramIncomeMessage incomeMessage)
+            {
+                foreach (var conversation in this._telegraConversations.Value)
+                {
+                    if (await conversation.IsStartingMessage(incomeMessage.MessageText))
+                    {
+                        var nextStepName = await conversation.NextConversationStep(
+                            string.Empty,
+                            outgoingPreMessageInfo,
+                            incomeMessage.MessageText
+                        );
+                        if (!string.IsNullOrEmpty(nextStepName))
+                        {
+                            this._logger.Error("Undone multymessage conversations");
+                            throw new NotImplementedException("Undone multimessage conversations");
+                        }
+
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
         }
+
     }
 }

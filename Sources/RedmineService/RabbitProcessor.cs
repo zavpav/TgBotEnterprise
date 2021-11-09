@@ -67,7 +67,8 @@ namespace RedmineService
             this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
 
             this._rabbitService.RegisterDirectProcessor<BugTrackerTasksRequestMessage, BugTrackerTasksResponseMessage>(
-                RabbitMessages.BugTrackerRequestIssues, ProcessBugTrackerRequestIssues,
+                RabbitMessages.BugTrackerRequestIssues, 
+                this.ProcessBugTrackerRequestIssues,
                 this._logger);
         }
 
@@ -172,7 +173,7 @@ namespace RedmineService
                 requestMessage.FilterVersionText,
                 requestMessage.FilterStatus);
 
-            responseMessage.Issues = this._mapper.Map<BugTrackerTasksResponseMessage.BugTrackerIssue[]>(foundIssues);
+            responseMessage.Issues = this._mapper.Map<BugTrackerIssue[]>(foundIssues);
 
             return responseMessage;
         }
