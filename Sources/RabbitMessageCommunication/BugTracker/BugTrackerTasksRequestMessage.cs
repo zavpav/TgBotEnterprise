@@ -19,8 +19,5 @@
         
         /// <summary> Request tasks by version </summary>
         public string? FilterVersionText { get; set; }
-
-        /// <summary> List of issue statuses </summary>
-        public string[]? FilterStatus { get; set; }
     }
 }

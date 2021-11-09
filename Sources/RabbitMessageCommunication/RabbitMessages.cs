@@ -65,6 +65,9 @@ namespace RabbitMessageCommunication
         /// <summary> Request issues from BugTracker </summary>
         public const string BugTrackerRequestIssues = "BugTrackerRequestIssues";
 
+        /// <summary> Information about changed issue </summary>
+        public const string BugTrackerIssueChanged = "BugTrackerIssueChanged";
+
         #endregion
 
     }

@@ -14,17 +14,20 @@ namespace RabbitMessageCommunication.BugTracker
         /// <summary> Issue text </summary>
         public string Description { get; set; } = "";
 
-        /// <summary> Issue status </summary>
-        public string Status { get; set; } = "";
+        /// <summary> Resolution </summary>
+        public string Resolution { get; set; } = "";
+
+        /// <summary> Issue status from bugtracker </summary>
+        public string RedmineStatus { get; set; } = "";
+
+        /// <summary> Logic status of issue </summary>
+        public EnumIssueStatus IssueStatus { get; set; } = EnumIssueStatus.NotDefined;
 
         /// <summary> Version </summary>
         public string Version { get; set; } = "";
 
-        /// <summary> Resolution </summary>
-        public string Resolution { get; set; } = "";
-
         /// <summary> Project name from bugtracker </summary>
-        public string ProjectName { get; set; } = "";
+        public string RedmineProjectName { get; set; } = "";
 
         /// <summary> Project sysname </summary>
         public string ProjectSysName { get; set; } = "";
@@ -33,13 +36,13 @@ namespace RabbitMessageCommunication.BugTracker
         public DateTime UpdateOn { get; set; }
 
         /// <summary> BotSystemUserId  </summary>
-        public string? AssignOnUserBotId { get; set; } = "";
+        public string? UserBotIdAssignOn { get; set; }
+
+        /// <summary> Whom assign issue (User name from bugtracker system) </summary>
+        public string RedmineAssignOn { get; set; } = "";
 
         /// <summary> Whom assign issue (User name from bugtracker system) </summary>
         public string CreatorName { get; set; } = "";
-
-        /// <summary> Whom assign issue (User name from bugtracker system) </summary>
-        public string AssignOn { get; set; } = "";
 
         /// <summary> Sorting (if needed) </summary>
         public int OrderBy { get; set; }

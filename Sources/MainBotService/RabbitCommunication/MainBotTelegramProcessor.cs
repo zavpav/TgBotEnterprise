@@ -62,8 +62,7 @@ namespace MainBotService.RabbitCommunication
                     this._logger.Information(incomeMessage, "Processing 'MY TASKS' message");
                     var requestMessage = new BugTrackerTasksRequestMessage(incomeMessage.SystemEventId)
                     {
-                        FilterUserBotId = incomeMessage.BotUserId,
-                        FilterStatus = new []{"Черновик", "В работе"}
+                        FilterUserBotId = incomeMessage.BotUserId
                     }; 
 
                     var responseMessage = await this._owner._rabbitService.DirectRequestTo<BugTrackerTasksRequestMessage, BugTrackerTasksResponseMessage>(
@@ -72,7 +71,7 @@ namespace MainBotService.RabbitCommunication
                         requestMessage
                         );
 
-                    var issues = responseMessage.Issues.Where(x => x.Status == "Черновик").ToList();
+                    var issues = responseMessage.Issues.Where(x => x.RedmineStatus == "Черновик").ToList();
 
                     var sb = new StringBuilder(200);
                     if (issues.Count > 10)
@@ -86,7 +85,7 @@ namespace MainBotService.RabbitCommunication
                         foreach (var issue in issues)
                         {
                             sb.AppendFormat("#{0} {1}\n", issue.Num, issue.Subject);
-                            sb.AppendFormat("   Статус: {0}\n   Исполнитель: {1}\n", issue.Status, issue.AssignOn);
+                            sb.AppendFormat("   Статус: {0}\n   Исполнитель: {1}\n", issue.RedmineStatus, issue.RedmineAssignOn);
                             sb.Append("\n");
                         }
                     }
@@ -134,7 +133,7 @@ namespace MainBotService.RabbitCommunication
                             ChatId = incomeMessage.ChatId
                         };
 
-                        this._logger.ForContext("outgoingMessage", outgoingMessage)
+                        this._logger.ForContext("outgoingMessage", outgoingMessage, true)
                             .Information(outgoingMessage, "User is inactivated. Send message through telegram. {outgoingMessageText}", outgoingMessage.Message);
 
                         await this._owner._rabbitService.PublishInformation(
