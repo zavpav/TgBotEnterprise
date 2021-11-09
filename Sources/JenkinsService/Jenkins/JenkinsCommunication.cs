@@ -85,7 +85,8 @@ namespace JenkinsService.Jenkins
             return await HttpExtension.LoadXmlFromRequest(uri,
                 TimeSpan.FromSeconds(9),
                 this.AddCredential,
-                this.UpdateCredential);
+                this.UpdateCredential,
+                this._logger);
         }
 
         public async Task<string> GetAnyInformation()

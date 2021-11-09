@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Serilog;
 
 namespace CommonInfrastructure
 {
@@ -40,13 +41,15 @@ namespace CommonInfrastructure
         public static async Task<XDocument> LoadXmlFromRequest(string uri, 
             TimeSpan timeout, 
             Func<WebRequest, Task> addCredintal,
-            Func<Task> updateCredintal
+            Func<Task> updateCredintal,
+            ILogger logger
             )
         {
             var reTry = 0;
             var unauthorizedReTry = false;
             Exception? ex = null;
 
+            logger.Information("Try to get redmine information {query}", uri);
 
             while (reTry < DefaultReTriesCount)
             {
@@ -71,19 +74,19 @@ namespace CommonInfrastructure
                     if (unauthorizedReTry)
                         throw;
 
-                    Console.WriteLine("Unauthorized/Fobitten exception " + request.RequestUri + " exception " + e);
+                    logger.Warning(e, "Unauthorized/Fobitten exception {request}", request.RequestUri);
                     unauthorizedReTry = true;
                     await updateCredintal();
                 }
                 catch (WebException e) when (e.Status == WebExceptionStatus.Timeout)
                 {
-                    Console.WriteLine("Timeout exception " + request.RequestUri + " exception " + e);
+                    logger.Warning(e, "Timeout exception {request}", request.RequestUri);
                     timeout *= 2;
                     ex = e;
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Some exception " + request.RequestUri + " exception " + e);
+                    logger.Warning(e, "Some exception {request}", request.RequestUri);
                     ex = e;
                 }
                 
@@ -93,7 +96,10 @@ namespace CommonInfrastructure
             if (reTry >= DefaultReTriesCount)
             {
                 if (ex != null)
+                {
+                    logger.Error(ex, "Error redmine get data: request {request}", uri);
                     throw ex; // throw last exception
+                }
                 else
                     throw new NotSupportedException("Something wrong. Retryed maximum times.");
             }
