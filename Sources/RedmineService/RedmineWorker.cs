@@ -34,6 +34,7 @@ namespace RedmineService
                 var changedIssues = await redmineCommunication.UpdateIssuesDb();
                 if (changedIssues.Count != 0)
                     await ((RabbitProcessor) this._rabbitProcessor).SendUpdatedIssues(changedIssues);
+                
                 //_logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
                 await Task.Delay(10000, stoppingToken);
             }

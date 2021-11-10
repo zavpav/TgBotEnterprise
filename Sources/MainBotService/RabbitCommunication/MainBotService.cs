@@ -113,6 +113,36 @@ namespace MainBotService.RabbitCommunication
                 RabbitMessages.MainBotDirectGetAllUsers, 
                 this.ProcessMainBotDirectGetAllUsers, 
                 this._logger);
+
+            this._rabbitService.Subscribe<BugTrackerIssueChangedMessage>(EnumInfrastructureServicesType.BugTracker,
+                RabbitMessages.BugTrackerIssueChanged, 
+                this.ProcessBugTrackerIssueChanged, 
+                this._logger);
+        }
+
+        /// <summary> Process bugtracker issue changed </summary>
+        private async Task ProcessBugTrackerIssueChanged(BugTrackerIssueChangedMessage message, IDictionary<string, string> rabbitMessageHeaders)
+        {
+            this._logger
+                .ForContext("message", message, true)
+                .Information(message, "Processing ProcessBugTrackerIssueChanged");
+
+            if (message.NewVersion != null)
+            {
+                if (string.IsNullOrEmpty(message.NewVersion.UserBotIdAssignOn))
+                {
+                    this._logger.Error(message, "Error processing message. UserBotId not found");
+                    return;
+                }
+
+                await this._rabbitService.PublishInformation(RabbitMessages.TelegramOutgoingMessage,
+                    new TelegramOutgoingMessage
+                    {
+                        SystemEventId = message.SystemEventId,
+                        Message = "IssueChanged #" + message.NewVersion.Num,
+                        BotUserId = message.NewVersion.UserBotIdAssignOn
+                    });
+            }
         }
 
         /// <summary> Process direct request for getting all users </summary>

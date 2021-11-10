@@ -231,10 +231,49 @@ namespace TelegramService.Telegram
 
         public async Task SendMessage(TelegramOutgoingMessage messageData)
         {
+            var chatId = messageData.ChatId;
+            if (chatId == null)
+            {
+                if (messageData.BotUserId == null)
+                {
+                    this._logger
+                        .ForContext("message", messageData, true)
+                        .Error("Error processing output message. ChatId == null && BotUserId == null");
+                    return;
+                }
+
+                var usrInfo = await this._dbContext.UsersInfo.AsNoTracking().SingleOrDefaultAsync(x => x.BotUserId == messageData.BotUserId);
+                if (usrInfo == null)
+                {
+                    this._logger
+                        .ForContext("message", messageData, true)
+                        .Error("Error processing output message. User '{userBotId}' not found.", messageData.BotUserId);
+                    return;
+                }
+                if (usrInfo.DefaultChatId == null)
+                {
+                    this._logger
+                        .ForContext("message", messageData, true)
+                        .Error("Error processing output message. ChatId not found.");
+                    return;
+                }
+
+                chatId = usrInfo.DefaultChatId;
+            }
+
             this._logger
                 .ForContext("outgingMessage", messageData, true)
-                .Information(messageData, "Sending message to user {messageDataId}", messageData.ChatId);
-            var msg = await this._telegramBot.SendTextMessageAsync(messageData.ChatId, messageData.Message, replyToMessageId: messageData.MessageId ?? 0);
+                .Information(messageData, "Sending message to user");
+            try
+            {
+                var msg = await this._telegramBot.SendTextMessageAsync(chatId.Value, messageData.Message, replyToMessageId: messageData.MessageId ?? 0);
+            }
+            catch (Exception e)
+            {
+                this._logger
+                    .ForContext("outgingMessage", messageData, true)
+                    .Error(messageData, e, "Error sending message to user");
+            }
             //msg.MessageId
         }
 

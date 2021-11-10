@@ -110,8 +110,9 @@ namespace CommonInfrastructure
                                       ?? throw new NotSupportedException("Postgre port is not initialized");
 
                 Console.WriteLine($"PostgreConnection: {postgreHost}:{postgrePort}");
-                optionsBuilder.UseNpgsql($"Host={postgreHost};Port={postgrePort};Database={dbName};Username={postgreUser};Password={postgrePassword}")
-                    .LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Information)
+                optionsBuilder
+                    .UseNpgsql($"Host={postgreHost};Port={postgrePort};Database={dbName};Username={postgreUser};Password={postgrePassword}")
+                    .LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Error)
                     //.EnableSensitiveDataLogging()
                     .EnableDetailedErrors();
             });
