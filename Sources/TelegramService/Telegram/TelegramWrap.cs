@@ -301,7 +301,7 @@ namespace TelegramService.Telegram
                 return;
             }
 
-            var htmlString = $"<b>{message.HeaderText}</b>\nЗадача <a href=\"{message.IssueHttpFullPrefix}\">#{message.IssueNum}</a>\n\n{message.BodyText}";
+            var htmlString = $"<b>{message.HeaderText.EscapeHtml()}</b>\n\n<a href=\"{message.IssueHttpFullPrefix}{message.IssueNum}\">#{message.IssueNum}</a>  {message.BodyText.EscapeHtml()}";
             await this._telegramBot.SendTextMessageAsync(chatId, htmlString, ParseMode.Html);
         }
 
@@ -325,7 +325,8 @@ namespace TelegramService.Telegram
                 foreach (var issuesByVersion in issuesByProject.GroupBy(x => x.Version))
                 {
                     var htmlString = this.FormatHtmlSingleVersionMessage(issuesByProject.Key, 
-                        issuesByVersion.Key, 
+                        issuesByVersion.Key,
+                        message.IssueHttpFullPrefix,
                         issuesByVersion.ToList());
 
                     await this._telegramBot.SendTextMessageAsync(message.ChatId, htmlString, ParseMode.Html);
@@ -337,10 +338,12 @@ namespace TelegramService.Telegram
         /// <summary> Format issues by proect and version </summary>
         /// <param name="projectSysName">Sys name of project</param>
         /// <param name="version">Version name</param>
+        /// <param name="httpIssuePrefix">Web address for open issue</param>
         /// <param name="issues">List of issues</param>
         /// <returns>Formatted string for message as html-string</returns>
         private string FormatHtmlSingleVersionMessage(string projectSysName, 
             string version, 
+            string httpIssuePrefix,
             List<BugTrackerIssue> issues)
         {
             var sb = new StringBuilder();
@@ -364,7 +367,7 @@ namespace TelegramService.Telegram
                 foreach (var issue in issuesByStatus)
                 {
                     sb.Append(this.DefineRoleIconByUser(issue.UserBotIdAssignOn));
-                    sb.Append($"<a href=\"{issue.Num}\"> {issue.Subject.EscapeHtml()}</a>\n");
+                    sb.Append($"<a href=\"{httpIssuePrefix}{issue.Num}\"> {issue.Subject.EscapeHtml()}</a>\n");
                     sb.Append($"<i>Назначена: {issue.RedmineAssignOn.EscapeHtml()}</i>\n\n");
                 }
             }

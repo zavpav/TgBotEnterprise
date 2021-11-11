@@ -169,9 +169,9 @@ namespace MainBotService.RabbitCommunication
 
             if (message.OldVersion == null)
             {
-                outgoingMessage.HeaderText = "Новая задача";
+                outgoingMessage.HeaderText = "Вам новая задача";
                 // ReSharper disable once UseStringInterpolation
-                outgoingMessage.BodyText = string.Format("{0}\nПроект: {1} Версия {2}",
+                outgoingMessage.BodyText = string.Format("{0}\n\n  Проект: {1}\n  Версия: {2}",
                                                message.NewVersion.Subject, 
                                                message.NewVersion.RedmineProjectName, 
                                                message.NewVersion.Version);
@@ -184,25 +184,25 @@ namespace MainBotService.RabbitCommunication
             else if (message.OldVersion.Subject != message.NewVersion.Subject ||
                      message.OldVersion.Description != message.NewVersion.Description)
             {
-                outgoingMessage.HeaderText = "Задача изменена";
+                outgoingMessage.HeaderText = "Ваша Задача изменена";
             }
             else if (message.HasChanges)
             {
-                outgoingMessage.HeaderText = "Задача изменена";
+                outgoingMessage.HeaderText = "Ваша Задача изменена";
             }
             else if (message.HasComment)
             {
-                outgoingMessage.HeaderText = "В задаче появился новый комментарий";
+                outgoingMessage.HeaderText = "В Вашей задаче появился новый комментарий";
             }
             else
             {
-                outgoingMessage.HeaderText = "С задачей что-то случилось";
+                outgoingMessage.HeaderText = "С Вашей задачей что-то случилось";
             }
 
-            if (outgoingMessage.BodyText == null)
+            if (string.IsNullOrEmpty(outgoingMessage.BodyText))
             {
                 // ReSharper disable once UseStringInterpolation
-                outgoingMessage.BodyText = string.Format("{0}\nПроект: {1} Версия {2}\nПользователь:{3}",
+                outgoingMessage.BodyText = string.Format("{0}\n\n  Проект: {1}\n  Версия: {2}\n  Изменяльщик: {3}",
                     message.NewVersion.Subject,
                     message.NewVersion.RedmineProjectName,
                     message.NewVersion.Version,

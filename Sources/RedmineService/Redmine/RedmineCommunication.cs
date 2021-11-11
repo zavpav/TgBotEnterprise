@@ -34,7 +34,7 @@ namespace RedmineService.Redmine
         /// <returns>Http part. If we concat this part with "issue num" we will receive full address for opening issue</returns>
         public async ValueTask<string> GetHttpPrefixOfIssue()
         {
-            return (await this.GetRedmineHost()) + "/issues/";
+            return (await this.GetRedmineHost()) + "issues/";
         }
 
         /// <summary> Execute query. Add main url part. Configure credintals and etc </summary>
