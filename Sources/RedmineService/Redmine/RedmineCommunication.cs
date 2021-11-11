@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -29,9 +28,37 @@ namespace RedmineService.Redmine
             this._dbContext = dbContext;
         }
 
+
+        /// <summary> Get full prefix for "issue" </summary>
+        /// <returns></returns>
+        /// <returns>Http part. If we concat this part with "issue num" we will receive full address for opening issue</returns>
+        public async ValueTask<string> GetHttpPrefixOfIssue()
+        {
+            return (await this.GetRedmineHost()) + "/issues/";
+        }
+
         /// <summary> Execute query. Add main url part. Configure credintals and etc </summary>
         private async Task<XDocument> ExecuteRequest(string requestPart)
         {
+            var redmineHost = await GetRedmineHost();
+
+            var uri = redmineHost + requestPart;
+            return await HttpExtension.LoadXmlFromRequest(uri, 
+                TimeSpan.FromSeconds(9), 
+                this.AddCredential,
+                this.UpdateCredential,
+                this._logger);
+        }
+
+        /// <summary> Cache of redmine host </summary>
+        private string? _redmineHost = null;
+        
+        /// <summary> Get redmine host </summary>
+        private async ValueTask<string> GetRedmineHost()
+        {
+            if (this._redmineHost != null)
+                return this._redmineHost;
+
             var redmineHost = "";
             try
             {
@@ -42,15 +69,9 @@ namespace RedmineService.Redmine
             catch (System.IO.FileNotFoundException)
             {
             }
-            if (redmineHost == null)
-                throw new NotSupportedException("Redmine host undefined");
 
-            var uri = redmineHost + requestPart;
-            return await HttpExtension.LoadXmlFromRequest(uri, 
-                TimeSpan.FromSeconds(9), 
-                this.AddCredential,
-                this.UpdateCredential,
-                this._logger);
+            this._redmineHost = redmineHost ?? throw new NotSupportedException("Redmine host undefined");
+            return this._redmineHost;
         }
 
         /// <summary> Check redmine alive (select any information from redmine) </summary>
@@ -160,11 +181,23 @@ namespace RedmineService.Redmine
                 if (!string.IsNullOrEmpty(issue.UserBotIdAssignOn) 
                     || !string.IsNullOrEmpty(savedIssue?.UserBotIdAssignOn))
                 {
-                    issuesChanged.Add(new DtoIssueChanged
+                    var issueChanged = new DtoIssueChanged
                     {
                         OldVersion = savedIssue,
                         NewVersion = issue
-                    });
+                    };
+                    if (savedIssue != null)
+                    {
+                        var journals = await this.GetIssueJournals(savedIssue.Num);
+                        var newJournals = journals.Where(x => x.CreateOn > savedIssue.UpdateOn).ToList();
+                        if (newJournals.Any(x => x.HasComment))
+                            issueChanged.HasComment = true;
+                        if (newJournals.Any(x => x.HasDetails))
+                            issueChanged.HasChanges = true;
+                        issueChanged.RedmineUserLastChanged = newJournals.Select(x => x.RedmineUser).Distinct().ToArray();
+                    }
+
+                    issuesChanged.Add(issueChanged);
                 }
 
                 try
@@ -200,6 +233,52 @@ namespace RedmineService.Redmine
             }
             return issuesChanged;
         }
+
+        /// <summary> Information from issue journal. Don't want to save </summary>
+        private class RedmineJournal
+        {
+#nullable disable
+            public string JournalId { get; set; }
+            public string RedmineUser { get; set; }
+#nullable enable
+            public bool HasComment { get; set; }
+            public bool HasDetails { get; set; }
+            public DateTime CreateOn { get; set; }
+        }
+
+        /// <summary> Get journal information from issue </summary>
+        /// <param name="num">Issue num</param>
+        private async Task<List<RedmineJournal>> GetIssueJournals(string num)
+        {
+            var xFullIssue = await this.ExecuteRequest($"issues/{num}.xml?include=journals");
+            var xJournals = xFullIssue?.Element("issue")?.Element("journals");
+            if (xJournals == null)
+            {
+                this._logger
+                    .ForContext("fullIssue", xFullIssue, true)
+                    .Error("Error issue #{num}", num); 
+                return new List<RedmineJournal>();
+            }
+
+            var journals = new List<RedmineJournal>();
+
+            foreach (var xJournal in xJournals.Elements("journal"))
+            {
+                var redmineJournal = new RedmineJournal
+                {
+                    JournalId = xJournal.Attribute("id")?.Value ?? "",
+                    RedmineUser = xJournal.Element("user")?.Attribute("name")?.Value ?? "",
+                    HasComment = !string.IsNullOrEmpty(xJournal.Element("notes")?.Value),
+                    HasDetails = xJournal.Element("details")?.Elements("detail").Count() != 0,
+                    CreateOn = this.GetDateTimeFromXml(xJournal, "created_on")
+                };
+                journals.Add(redmineJournal);
+            }
+
+            return journals;
+        }
+
+
 
         /// <summary> Get last updated issues </summary>
         /// <remarks>Has a little error and always return last issue (read comments iGetIssuesByDateDirect)</remarks>
@@ -356,24 +435,27 @@ namespace RedmineService.Redmine
                 ?.Value;
             issue.Resolution = resolution ?? "";
 
-
-            var updateOnStr = xIssue.Element("updated_on")?.Value;
-            if (updateOnStr != null)
-            {
-                //2020-03-18T12:48:35Z
-                var dt = DateTime.ParseExact(updateOnStr, "yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
-                issue.UpdateOn = dt;
-            }
-            var createOnStr = xIssue.Element("created_on")?.Value;
-            if (createOnStr != null)
-            {
-                //2020-03-18T12:48:35Z
-                var dt = DateTime.ParseExact(createOnStr, "yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
-                issue.CreateOn = dt;
-            }
-           
+            issue.UpdateOn = this.GetDateTimeFromXml(xIssue, "updated_on");
+            issue.CreateOn = this.GetDateTimeFromXml(xIssue, "created_on");
 
             return issue;
+        }
+
+        /// <summary> Get date from redmine xml </summary>
+        /// <param name="xE">xml element</param>
+        /// <param name="field">Date element</param>
+        /// <returns>DateTime or null if field doesn't exist</returns>
+        private DateTime GetDateTimeFromXml(XElement xE, string field)
+        {
+            var dateStr = xE.Element(field)?.Value;
+            if (dateStr != null)
+            {
+                //2020-03-18T12:48:35Z
+                var dt = DateTime.ParseExact(dateStr, "yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
+                return dt;
+            }
+
+            return default;
         }
 
         #region Old functions. It's a pity to delete.

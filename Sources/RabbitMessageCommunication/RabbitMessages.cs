@@ -22,6 +22,8 @@ namespace RabbitMessageCommunication
         /// <summary> Telegram service must send information about bugtracker issues </summary>
         public const string TelegramOutgoingIssuesMessage = "TelegramOutgoingIssuesMessage";
 
+        /// <summary> Telegram service must send information about changed bugtracker issues </summary>
+        public const string TelegramOutgoingIssuesChangedMessage = "TelegramOutgoingIssuesChangedMessage";
 
         /// <summary> Publish information from telegram about new user </summary>
         public const string TelegramPublishNewUserFromTelegram = "TelegramPublishNewUserFromTelegram";

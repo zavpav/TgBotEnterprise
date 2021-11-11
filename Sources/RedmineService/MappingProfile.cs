@@ -16,6 +16,7 @@ namespace RedmineService
                 .ForMember(x => x.WhoIsThis, s => s.MapFrom(x => x.WhoIsThis));
 
             CreateMap<DbeIssue, BugTrackerIssue>();
+            CreateMap<DtoIssueChanged, BugTrackerIssueChangedMessage>();
         }
 
     }

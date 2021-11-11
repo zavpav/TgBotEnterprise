@@ -123,26 +123,96 @@ namespace MainBotService.RabbitCommunication
         /// <summary> Process bugtracker issue changed </summary>
         private async Task ProcessBugTrackerIssueChanged(BugTrackerIssueChangedMessage message, IDictionary<string, string> rabbitMessageHeaders)
         {
+            // We receive only "tracked user (has UserBotId)"
+            // Now processing logic has next steps:
+            // 1. Ignore delete issue. (because I don't want to know that there is less work
+            // 2. Send telegram message only to assigned user
+            // 3. Ignore if assigned user change his own issue (because I don't want to see message about my own changes
+            // 4. Check work time (I don't want to get message at the night) (not realized in nearly future)
+            // 5. Have some information about changes.
+
             this._logger
                 .ForContext("message", message, true)
                 .Information(message, "Processing ProcessBugTrackerIssueChanged");
 
-            if (message.NewVersion != null)
+            // 1. Ignore delete issue. (because I don't want to know that there is less work
+            if (message.NewVersion == null)
+                return;
+
+            // 2. Send telegram message only to assigned user
+            if (string.IsNullOrEmpty(message.NewVersion.UserBotIdAssignOn))
             {
-                if (string.IsNullOrEmpty(message.NewVersion.UserBotIdAssignOn))
+                this._logger.Error(message, "Error processing message. UserBotId not found");
+                return;
+            }
+
+            // 3. Ignore if assigned user change his own issue (because I don't want to see message about my own changes
+            if (message.RedmineUserLastChanged != null)
+            {
+                if (message.RedmineUserLastChanged.All(x => x == message.NewVersion.RedmineAssignOn))
                 {
-                    this._logger.Error(message, "Error processing message. UserBotId not found");
+                    this._logger.Information("Ignore message processing. All changed users are the Assigned user '{RedmineAssignOn}'", message.NewVersion.RedmineAssignOn);
                     return;
                 }
-
-                await this._rabbitService.PublishInformation(RabbitMessages.TelegramOutgoingMessage,
-                    new TelegramOutgoingMessage
-                    {
-                        SystemEventId = message.SystemEventId,
-                        Message = "IssueChanged #" + message.NewVersion.Num,
-                        BotUserId = message.NewVersion.UserBotIdAssignOn
-                    });
             }
+
+            // 4. Check work time (I don't want to get message at the night) (not realized in nearly future)
+            //..
+            //..
+
+
+            var outgoingMessage = new TelegramOutgoingIssuesChangedMessage(this.GetNextEventId(), message.NewVersion.UserBotIdAssignOn)
+            {
+                IssueHttpFullPrefix = message.IssueHttpFullPrefix,
+                IssueNum = message.NewVersion.Num
+            };
+
+            if (message.OldVersion == null)
+            {
+                outgoingMessage.HeaderText = "Новая задача";
+                // ReSharper disable once UseStringInterpolation
+                outgoingMessage.BodyText = string.Format("{0}\nПроект: {1} Версия {2}",
+                                               message.NewVersion.Subject, 
+                                               message.NewVersion.RedmineProjectName, 
+                                               message.NewVersion.Version);
+
+            }
+            else if (message.OldVersion.RedmineAssignOn != message.NewVersion.RedmineAssignOn)
+            {
+                outgoingMessage.HeaderText = "Вам назначена задача";
+            }
+            else if (message.OldVersion.Subject != message.NewVersion.Subject ||
+                     message.OldVersion.Description != message.NewVersion.Description)
+            {
+                outgoingMessage.HeaderText = "Задача изменена";
+            }
+            else if (message.HasChanges)
+            {
+                outgoingMessage.HeaderText = "Задача изменена";
+            }
+            else if (message.HasComment)
+            {
+                outgoingMessage.HeaderText = "В задаче появился новый комментарий";
+            }
+            else
+            {
+                outgoingMessage.HeaderText = "С задачей что-то случилось";
+            }
+
+            if (outgoingMessage.BodyText == null)
+            {
+                // ReSharper disable once UseStringInterpolation
+                outgoingMessage.BodyText = string.Format("{0}\nПроект: {1} Версия {2}\nПользователь:{3}",
+                    message.NewVersion.Subject,
+                    message.NewVersion.RedmineProjectName,
+                    message.NewVersion.Version,
+                    string.Join(", ", message.RedmineUserLastChanged?.Where(x => x != message.NewVersion.RedmineAssignOn)
+                                      ?? new List<string>())
+                );
+            }
+            await this._rabbitService.PublishInformation(
+                RabbitMessages.TelegramOutgoingIssuesChangedMessage,
+                outgoingMessage);
         }
 
         /// <summary> Process direct request for getting all users </summary>
@@ -372,7 +442,7 @@ namespace MainBotService.RabbitCommunication
             return this._dbContext.Projects.ToListAsync();
         }
         
-        public async Task<List<BugTrackerIssue>> GetBugTrackerIssues(string projectSysName, string? version)
+        public async Task<DtoBugTrackerIssues> GetBugTrackerIssues(string projectSysName, string? version)
         {
             var eventId = this._eventIdGenerator.GetNextEventId();
 
@@ -388,7 +458,11 @@ namespace MainBotService.RabbitCommunication
                 requestMessage
             );
 
-            return responseMessage.Issues.ToList();
+            return new DtoBugTrackerIssues
+            {
+                HttpIssuePrefix = responseMessage.IssueHttpFullPrefix,
+                Issues = responseMessage.Issues.ToList()
+            };
         }
 
     }

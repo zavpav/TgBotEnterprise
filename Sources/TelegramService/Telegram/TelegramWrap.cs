@@ -31,6 +31,8 @@ namespace TelegramService.Telegram
         /// we have a special formatting for issues
         /// </remarks>
         Task SendIssuesMessage(TelegramOutgoingIssuesMessage message);
+
+        Task SendIssueChangedMessage(TelegramOutgoingIssuesChangedMessage message);
     }
 
     public class TelegramWrap : ITelegramWrap
@@ -229,36 +231,45 @@ namespace TelegramService.Telegram
             return Task.CompletedTask;
         }
 
+        private async Task<long?> DefineChatId(string? userBotId)
+        {
+            if (userBotId == null)
+            {
+                this._logger
+                    .Error("Error processing output message. ChatId == null && BotUserId == null");
+                return null;
+            }
+
+            var usrInfo = await this._dbContext.UsersInfo.AsNoTracking().SingleOrDefaultAsync(x => x.BotUserId == userBotId);
+            if (usrInfo == null)
+            {
+                this._logger
+                    .Error("Error processing output message. User '{userBotId}' not found.", userBotId);
+                return null;
+            }
+
+            if (usrInfo.DefaultChatId == null)
+            {
+                this._logger
+                    .Error("Error processing output message. ChatId not found. User: {userBotId}", userBotId);
+                return null;
+            }
+
+            return usrInfo.DefaultChatId;
+        }
+
         public async Task SendMessage(TelegramOutgoingMessage messageData)
         {
             var chatId = messageData.ChatId;
             if (chatId == null)
+                chatId = await this.DefineChatId(messageData.BotUserId);
+
+            if (chatId == null)
             {
-                if (messageData.BotUserId == null)
-                {
-                    this._logger
-                        .ForContext("message", messageData, true)
-                        .Error("Error processing output message. ChatId == null && BotUserId == null");
-                    return;
-                }
-
-                var usrInfo = await this._dbContext.UsersInfo.AsNoTracking().SingleOrDefaultAsync(x => x.BotUserId == messageData.BotUserId);
-                if (usrInfo == null)
-                {
-                    this._logger
-                        .ForContext("message", messageData, true)
-                        .Error("Error processing output message. User '{userBotId}' not found.", messageData.BotUserId);
-                    return;
-                }
-                if (usrInfo.DefaultChatId == null)
-                {
-                    this._logger
-                        .ForContext("message", messageData, true)
-                        .Error("Error processing output message. ChatId not found.");
-                    return;
-                }
-
-                chatId = usrInfo.DefaultChatId;
+                this._logger
+                    .ForContext("message", messageData, true)
+                    .Error("Error processing output message. ChatId not found.");
+                return;
             }
 
             this._logger
@@ -275,6 +286,23 @@ namespace TelegramService.Telegram
                     .Error(messageData, e, "Error sending message to user");
             }
             //msg.MessageId
+        }
+
+        public async Task SendIssueChangedMessage(TelegramOutgoingIssuesChangedMessage message)
+        {
+            await Task.Yield();
+
+            var chatId = await this.DefineChatId(message.BotUserId);
+            if (chatId == null)
+            {
+                this._logger
+                    .ForContext("message", message, true)
+                    .Error("Error processing output message. ChatId not found.");
+                return;
+            }
+
+            var htmlString = $"<b>{message.HeaderText}</b>\nЗадача <a href=\"{message.IssueHttpFullPrefix}\">#{message.IssueNum}</a>\n\n{message.BodyText}";
+            await this._telegramBot.SendTextMessageAsync(chatId, htmlString, ParseMode.Html);
         }
 
         public async Task SendIssuesMessage(TelegramOutgoingIssuesMessage message)

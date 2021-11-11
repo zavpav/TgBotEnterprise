@@ -167,7 +167,8 @@ namespace RedmineService
         private async Task<BugTrackerTasksResponseMessage> ProcessBugTrackerRequestIssues(BugTrackerTasksRequestMessage requestMessage, IDictionary<string, string> rabbitMessageHeaders)
         {
             var responseMessage = new BugTrackerTasksResponseMessage(requestMessage.SystemEventId);
-            
+            responseMessage.IssueHttpFullPrefix = await this._redmineService.GetHttpPrefixOfIssue();
+
             // force update issues
             var changedIssues = await this._redmineService.UpdateIssuesDb();
             Task? sendUpdatedIssues = null;
@@ -180,7 +181,7 @@ namespace RedmineService
                 requestMessage.FilterVersionText);
 
             responseMessage.Issues = this._mapper.Map<BugTrackerIssue[]>(foundIssues);
-            
+
             if (sendUpdatedIssues != null)
                 await sendUpdatedIssues;
 
@@ -194,23 +195,35 @@ namespace RedmineService
             // That's why I don't concat several messages into one.
             foreach (var issueChanged in changedIssues)
             {
-                var changedIssueMessage = new BugTrackerIssueChangedMessage(this._eventIdGenerator.GetNextEventId());
-                if (issueChanged.OldVersion != null)
-                    changedIssueMessage.OldVersion = this._mapper.Map<BugTrackerIssue>(issueChanged.OldVersion);
-                if (issueChanged.NewVersion != null)
-                    changedIssueMessage.NewVersion = this._mapper.Map<BugTrackerIssue>(issueChanged.NewVersion);
+                try
+                {
+                    var changedIssueMessage = new BugTrackerIssueChangedMessage(this._eventIdGenerator.GetNextEventId());
+                    changedIssueMessage.IssueHttpFullPrefix = await this._redmineService.GetHttpPrefixOfIssue();
 
-                this._logger
-                    .ForContext("message", changedIssueMessage, true)
-                    .Information("Issue changed #{Num}", 
-                        changedIssueMessage.OldVersion?.Num 
-                        ?? changedIssueMessage.NewVersion?.Num
-                        ?? "<error>");
+                    if (issueChanged.OldVersion != null)
+                        changedIssueMessage.OldVersion = this._mapper.Map<BugTrackerIssue>(issueChanged.OldVersion);
+                    if (issueChanged.NewVersion != null)
+                        changedIssueMessage.NewVersion = this._mapper.Map<BugTrackerIssue>(issueChanged.NewVersion);
 
-                await this._rabbitService.PublishInformation(
-                    RabbitMessages.BugTrackerIssueChanged, 
-                    changedIssueMessage,
-                    EnumInfrastructureServicesType.Main);
+                    this._mapper.Map(issueChanged, changedIssueMessage);
+
+                    this._logger
+                        .ForContext("message", changedIssueMessage, true)
+                        .Information("Issue changed #{Num}",
+                            changedIssueMessage.OldVersion?.Num
+                            ?? changedIssueMessage.NewVersion?.Num
+                            ?? "<error>");
+
+                    await this._rabbitService.PublishInformation(
+                        RabbitMessages.BugTrackerIssueChanged,
+                        changedIssueMessage,
+                        EnumInfrastructureServicesType.Main);
+                }
+                catch (Exception e)
+                {
+                    this._logger.ForContext("changed", issueChanged, true)
+                        .Warning(e, "Error during sending RedmineChangingMessage");
+                }
             }
         }
 
