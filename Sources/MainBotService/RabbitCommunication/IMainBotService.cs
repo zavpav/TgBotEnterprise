@@ -17,7 +17,7 @@ namespace MainBotService.RabbitCommunication
         /// <param name="projectSysName">Project</param>
         /// <param name="version">Version</param>
         /// <returns>List of issues</returns>
-        Task<DtoBugTrackerIssues> GetBugTrackerIssues(string projectSysName, string? version);
+        Task<(string, List<BugTrackerIssue>)> GetBugTrackerIssues(string projectSysName, string? version);
 
         /// <summary> Get event Id </summary>
         string GetNextEventId();

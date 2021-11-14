@@ -36,8 +36,8 @@ namespace MainBotService.RabbitCommunication.Telegram
                 if (string.IsNullOrEmpty(project.CurrentVersion))
                     continue;
 
-                var issues = await this._mainBot.GetBugTrackerIssues(project.SysName, project.CurrentVersion);
-                if (issues.Issues.Count == 0)
+                var (httpPrefix, issues) = await this._mainBot.GetBugTrackerIssues(project.SysName, project.CurrentVersion);
+                if (issues.Count == 0)
                 {
                     this._logger.Information("No issues found {ProjectSysName} {Version}", 
                         project.SysName, 
@@ -48,15 +48,15 @@ namespace MainBotService.RabbitCommunication.Telegram
                     this._logger.Information("Found issues {ProjectSysName} {Version} : {Count}",
                         project.SysName,
                         project.CurrentVersion,
-                        issues.Issues.Count);
+                        issues.Count);
 
                     // Final formatting must be in telegram service because TelegramMessage has restrict for length and html formatting
                     // that's why send message with all issues to telegramService
                     var outgoingMessage = new TelegramOutgoingIssuesMessage(this._mainBot.GetNextEventId(), outgoingPreMessageInfo.BotUserId)
                     {
                         ChatId = outgoingPreMessageInfo.ChatId,
-                        Issues = issues.Issues.ToArray(),
-                        IssueHttpFullPrefix = issues.HttpIssuePrefix
+                        Issues = issues.ToArray(),
+                        IssueHttpFullPrefix = httpPrefix
                     };
 
                     await this._mainBot.PublishMessage(RabbitMessages.TelegramOutgoingIssuesMessage, 

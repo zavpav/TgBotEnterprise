@@ -442,7 +442,7 @@ namespace MainBotService.RabbitCommunication
             return this._dbContext.Projects.ToListAsync();
         }
         
-        public async Task<DtoBugTrackerIssues> GetBugTrackerIssues(string projectSysName, string? version)
+        public async Task<(string, List<BugTrackerIssue>)> GetBugTrackerIssues(string projectSysName, string? version)
         {
             var eventId = this._eventIdGenerator.GetNextEventId();
 
@@ -458,11 +458,7 @@ namespace MainBotService.RabbitCommunication
                 requestMessage
             );
 
-            return new DtoBugTrackerIssues
-            {
-                HttpIssuePrefix = responseMessage.IssueHttpFullPrefix,
-                Issues = responseMessage.Issues.ToList()
-            };
+            return (responseMessage.IssueHttpFullPrefix, responseMessage.Issues.ToList());
         }
 
     }
