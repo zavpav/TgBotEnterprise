@@ -21,9 +21,12 @@ namespace JenkinsService.Database
 
         /// <summary> Information about job settings of projects </summary>
         public DbSet<DbeProjectSettings.JobDescription> ProjectSettingsJobDescription { get; set; }
+        
+        /// <summary> Jenkins jobs </summary>
+        public DbSet<DbeJenkinsJob> JenkinsJobs { get; set; }
 
 #nullable restore
-// ReSharper restore UnusedAutoPropertyAccessor.Global
+        // ReSharper restore UnusedAutoPropertyAccessor.Global
 
         protected override void OnModelCreating(ModelBuilder model)
         {

@@ -72,6 +72,14 @@ namespace JenkinsService.RabbitCommunication
             this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
         }
 
+        /// <summary> Send new job information </summary>
+        /// <param name="jobsChanges">Information about new finished jobs</param>
+        public async Task SendUpdatedJobs(List<DtoJobChanged> jobsChanges)
+        {
+            throw new NotImplementedException();
+        }
+
+
         private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
         {
             var usrInfo = await this._dbContext.UsersInfo

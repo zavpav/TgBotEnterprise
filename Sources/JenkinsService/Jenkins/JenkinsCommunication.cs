@@ -1,15 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using AutoMapper.Internal;
 using CommonInfrastructure;
 using JenkinsService.Database;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualBasic;
 using Serilog;
 
 namespace JenkinsService.Jenkins
@@ -125,5 +125,91 @@ namespace JenkinsService.Jenkins
             {
             }
         }
+
+        private readonly Regex _reGitComment = new Regex(@"^(?<prj>\S+)\s+#(?<num>\d+)\s+(?<cmmnt>.*)$");
+
+        public async Task<List<DtoJobChanged>> UpdateDb()
+        {
+            var isFirstLoad = await this._dbContext.JenkinsJobs.AnyAsync();
+            // /api/xml?tree=jobs[name,builds[number,fullDisplayName,displayName,description,result,timestamp,duration,building,actions[causes[shortDescription,userId,userName]],changeSets[items[comment]]]{0,5}]
+            var xmlJenkinsJobs = await this.ExecuteRequest("api/xml?tree=jobs[name,builds[number,fullDisplayName,displayName,description,result,timestamp,duration,building,actions[causes[shortDescription,userId,userName],lastBuiltRevision[branch[*]]],changeSets[items[comment]]]{0," 
+                                                           +  (isFirstLoad ? 10 : 5) + "]");
+
+            var xmlHudson = xmlJenkinsJobs.Element("hubson") ?? throw new NotSupportedException("hudson xml root not found");
+            var jenkinsJobs = new List<DbeJenkinsJob>();
+
+            foreach (var xJob in xmlHudson.Elements("job"))
+            {
+                foreach (var xBuild in xJob.Elements("build"))
+                {
+                    var jenkinsJob = new DbeJenkinsJob
+                    {
+                        JenkinsProjectName = xJob.Element("name")?.Value ?? "",
+                        BuildNumber = xBuild.Element("number")?.Value ?? "",
+                        BuildName = xBuild.Element("displayName")?.Value ?? "",
+                        BuildDescription = xBuild.Element("description")?.Value ?? "",
+                        BuildStatus = xBuild.Element("result")?.Value ?? "",
+                        BuildIsProcessing = bool.Parse(xBuild.Element("building")?.Value ?? "false"),
+                        ChangeInfos = new List<DbeJenkinsJob.ChangeInfo>()
+                    };
+
+                    // "Other" information about build
+                    foreach (var xAction in xBuild.Elements("action"))
+                    {
+                        var className = xAction.Attribute("_class")?.Value ?? "";
+                        if (className == "hudson.plugins.git.util.BuildData")
+                        {
+                            jenkinsJob.BuildBranchName = xAction.Element("lastBuiltRevision")?
+                                                             .Element("branch")?
+                                                             .Element("name")?
+                                                             .Value 
+                                                         ?? "";
+                        }
+                        else if (className == "hudson.model.CauseAction")
+                        {
+                            jenkinsJob.JenkinsBuildStarter = xAction.Element("cause")?
+                                                                 .Element("shortDescription")?
+                                                                 .Value
+                                                             ?? "";
+
+                        }
+                    }
+
+                    var changeSetComments = xBuild
+                        .Element("changeSet")?
+                        .Elements("item")
+                        .Select(x => x.Element("comment")?.Value ?? "");
+                    if (changeSetComments != null)
+                    {
+                        foreach (var jenComment in changeSetComments)
+                        {
+                            if (string.IsNullOrEmpty(jenComment))
+                                continue;
+
+                            var gitChange = new DbeJenkinsJob.ChangeInfo
+                            {
+                                GitComment = jenComment
+                            };
+
+                            var reMatch = this._reGitComment.Match(jenComment);
+                            if (reMatch.Success)
+                            {
+                                gitChange.IssueId = reMatch.Groups["num"].Value;
+                                gitChange.ProjectName = reMatch.Groups["prj"].Value;
+                            }
+
+                            jenkinsJob.ChangeInfos.Add(gitChange);
+                        }
+                    }
+
+                    jenkinsJobs.Add(jenkinsJob);
+                }
+            }
+
+            //jenkinsJobs
+
+            return new List<DtoJobChanged>();
+        }
+        
     }
 }

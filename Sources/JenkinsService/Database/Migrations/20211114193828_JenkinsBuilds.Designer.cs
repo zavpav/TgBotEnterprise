@@ -3,15 +3,17 @@ using System;
 using JenkinsService.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace JenkinsService.Database.Migrations
 {
     [DbContext(typeof(JenkinsDbContext))]
-    partial class JenkinsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20211114193828_JenkinsBuilds")]
+    partial class JenkinsBuilds
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

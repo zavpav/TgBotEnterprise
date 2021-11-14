@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CommonInfrastructure;
 using JenkinsService.Database;
+using JenkinsService.Jenkins;
 using JenkinsService.RabbitCommunication;
 using Serilog;
 
@@ -32,6 +33,8 @@ namespace JenkinsService
                     });
                     var mapper = mapperConfig.CreateMapper();
                     services.AddSingleton<IMapper>(mapper);
+
+                    services.AddSingleton<JenkinsCommunication>();
 
                     services.AddHostedService<JenkinsWorker>();
                 });
