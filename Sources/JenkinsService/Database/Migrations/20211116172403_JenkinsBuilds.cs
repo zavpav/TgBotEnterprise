@@ -14,18 +14,18 @@ namespace JenkinsService.Database.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    JenkinsProjectName = table.Column<string>(type: "text", nullable: false),
+                    JenkinsJobName = table.Column<string>(type: "text", nullable: false),
                     JenkinsBuildStarter = table.Column<string>(type: "text", nullable: false),
                     BuildNumber = table.Column<string>(type: "text", nullable: false),
                     BuildName = table.Column<string>(type: "text", nullable: false),
                     BuildDescription = table.Column<string>(type: "text", nullable: false),
+                    BuildSubType = table.Column<string>(type: "text", nullable: false),
                     BuildStatus = table.Column<string>(type: "text", nullable: false),
+                    JenkinsBuildStatus = table.Column<string>(type: "text", nullable: false),
                     BuildIsProcessing = table.Column<bool>(type: "boolean", nullable: false),
                     BuildDuration = table.Column<TimeSpan>(type: "interval", nullable: false),
                     BuildBranchName = table.Column<string>(type: "text", nullable: false),
-                    ProjectSysName = table.Column<string>(type: "text", nullable: true),
-                    BuildTupe = table.Column<string>(type: "text", nullable: false),
-                    UserBotIdAssignOn = table.Column<string>(type: "text", nullable: true)
+                    ProjectSysName = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {

@@ -33,6 +33,7 @@ namespace TelegramService.Telegram
         Task SendIssuesMessage(TelegramOutgoingIssuesMessage message);
 
         Task SendIssueChangedMessage(TelegramOutgoingIssuesChangedMessage message);
+        Task SendBuildChangedMessage(TelegramOutgoingBuildChangedMessage message);
     }
 
     public class TelegramWrap : ITelegramWrap
@@ -163,13 +164,11 @@ namespace TelegramService.Telegram
             }
             else
             {
-                if (usrInfo.DefaultChatId != currUsrInfo.DefaultChatId || currUsrInfo.WhoIsThis != usrInfo.WhoIsThis)
+                if (currUsrInfo.DefaultChatId != null)
                 {
-                    // Update User Info
                     usrInfo.DefaultChatId = currUsrInfo.DefaultChatId ?? usrInfo.DefaultChatId;
                     usrInfo.WhoIsThis = currUsrInfo.WhoIsThis;
-                    usrInfo.BotUserId = currUsrInfo.BotUserId;
-
+                    
                     await this._dbContext.SaveChangesAsync();
                 }
             }
@@ -302,6 +301,23 @@ namespace TelegramService.Telegram
             }
 
             var htmlString = $"<b>{message.HeaderText.EscapeHtml()}</b>\n\n<a href=\"{message.IssueHttpFullPrefix}{message.IssueNum}\">#{message.IssueNum}</a>  {message.BodyText.EscapeHtml()}";
+            await this._telegramBot.SendTextMessageAsync(chatId, htmlString, ParseMode.Html);
+        }
+
+        public async Task SendBuildChangedMessage(TelegramOutgoingBuildChangedMessage message)
+        {
+            await Task.Yield();
+
+            var chatId = await this.DefineChatId(message.BotUserId);
+            if (chatId == null)
+            {
+                this._logger
+                    .ForContext("message", message, true)
+                    .Error("Error processing output message. ChatId not found.");
+                return;
+            }
+
+            var htmlString = $"<a href=\"{message.BuildUri}\">Сборка</a>{message.Text?.EscapeHtml()}";
             await this._telegramBot.SendTextMessageAsync(chatId, htmlString, ParseMode.Html);
         }
 

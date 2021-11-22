@@ -10,6 +10,7 @@ using MainBotService.RabbitCommunication.Telegram;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.BugTracker;
+using RabbitMessageCommunication.BuildService;
 using RabbitMessageCommunication.MainBot;
 using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
@@ -118,6 +119,34 @@ namespace MainBotService.RabbitCommunication
                 RabbitMessages.BugTrackerIssueChanged, 
                 this.ProcessBugTrackerIssueChanged, 
                 this._logger);
+
+            this._rabbitService.Subscribe<BuildServiceBuildChangedMessage>(EnumInfrastructureServicesType.BuildService,
+                RabbitMessages.BuildSystemBuildChanged,
+                this.ProcessBuildSystemBuildChanged,
+                this._logger);
+        }
+
+        private async Task ProcessBuildSystemBuildChanged(BuildServiceBuildChangedMessage message, IDictionary<string, string> rabbitMessageHeaders)
+        {
+            this._logger
+                .ForContext("message", message, true)
+                .Information(message, "Processing ProcessBuildSystemBuildChanged");
+
+            // Ignore delete build. (because I don't want to know that there is less work)
+            if (message.NewVersion == null)
+                return;
+
+            var outgoingMessage = new TelegramOutgoingBuildChangedMessage(message.SystemEventId, "zavjalov");
+            outgoingMessage.BuildUri = message.BuildUri;
+            outgoingMessage.ArtifactsUri = message.ArtifactsUri;
+            outgoingMessage.Text = $"Сборка {message.NewVersion.BuildName} {message.NewVersion.BuildDescription}\n{message.NewVersion.ExecuterInfo}";
+
+            // Just for test
+            await this._rabbitService.PublishInformation(
+                RabbitMessages.TelegramOutgoingBuildChanged,
+                outgoingMessage);
+
+
         }
 
         /// <summary> Process bugtracker issue changed </summary>
@@ -135,7 +164,7 @@ namespace MainBotService.RabbitCommunication
                 .ForContext("message", message, true)
                 .Information(message, "Processing ProcessBugTrackerIssueChanged");
 
-            // 1. Ignore delete issue. (because I don't want to know that there is less work
+            // 1. Ignore delete issue. (because I don't want to know that there is less work)
             if (message.NewVersion == null)
                 return;
 

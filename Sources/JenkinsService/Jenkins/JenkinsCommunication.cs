@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -10,6 +11,7 @@ using System.Xml.Linq;
 using CommonInfrastructure;
 using JenkinsService.Database;
 using Microsoft.EntityFrameworkCore;
+using RabbitMessageCommunication.BuildService;
 using Serilog;
 
 namespace JenkinsService.Jenkins
@@ -25,6 +27,38 @@ namespace JenkinsService.Jenkins
         {
             this._logger = logger;
             this._dbContext = dbContext;
+        }
+
+        /// <summary> Get full address for "build" </summary>
+        public async ValueTask<string> GetUriForBuild(string jenkinsProjectName, string buildNum)
+        {
+            return (await this.GetJenkinsHost()) + "job/" + jenkinsProjectName + "/" + buildNum;
+        }
+
+        /// <summary> Cache of Jenkins host </summary>
+        private string? _jenkinsHost = null;
+
+        /// <summary> Get Jenkins host </summary>
+        private async ValueTask<string> GetJenkinsHost()
+        {
+            if (this._jenkinsHost != null)
+                return this._jenkinsHost;
+
+            var jenkinsHost = "";
+            try
+            {
+                var jsonString = await (new System.IO.StreamReader("Secretic/Configuration.json", Encoding.UTF8).ReadToEndAsync());
+                var configuraton = JsonSerializer2.DeserializeRequired<JenkinsConfiguraton>(jsonString, this._logger);
+                jenkinsHost = configuraton?.Host;
+            }
+            catch (System.IO.FileNotFoundException)
+            {
+            }
+            if (jenkinsHost == null)
+                throw new NotSupportedException("Jenkins host undefined");
+
+            this._jenkinsHost = jenkinsHost ?? throw new NotSupportedException("Jenkins host undefined");
+            return this._jenkinsHost;
         }
 
         /// <summary> Get project settings </summary>
@@ -67,21 +101,7 @@ namespace JenkinsService.Jenkins
         /// <summary> Execute query. Add main url part. Configure credintals and etc </summary>
         private async Task<XDocument> ExecuteRequest(string requestPart)
         {
-            var jenkinsHost = "";
-            try
-            {
-                var jsonString = await (new System.IO.StreamReader("Secretic/Configuration.json", Encoding.UTF8).ReadToEndAsync());
-                var configuraton = JsonSerializer2.DeserializeRequired<JenkinsConfiguraton>(jsonString, this._logger);
-                jenkinsHost = configuraton?.Host;
-            }
-            catch (System.IO.FileNotFoundException)
-            {
-            }
-            if (jenkinsHost == null)
-                throw new NotSupportedException("Jenkins host undefined");
-
-
-            var uri = jenkinsHost + requestPart;
+            var uri = (await this.GetJenkinsHost()) + requestPart;
             return await HttpExtension.LoadXmlFromRequest(uri,
                 TimeSpan.FromSeconds(9),
                 this.AddCredential,
@@ -130,12 +150,180 @@ namespace JenkinsService.Jenkins
 
         public async Task<List<DtoJobChanged>> UpdateDb()
         {
-            var isFirstLoad = await this._dbContext.JenkinsJobs.AnyAsync();
-            // /api/xml?tree=jobs[name,builds[number,fullDisplayName,displayName,description,result,timestamp,duration,building,actions[causes[shortDescription,userId,userName]],changeSets[items[comment]]]{0,5}]
-            var xmlJenkinsJobs = await this.ExecuteRequest("api/xml?tree=jobs[name,builds[number,fullDisplayName,displayName,description,result,timestamp,duration,building,actions[causes[shortDescription,userId,userName],lastBuiltRevision[branch[*]]],changeSets[items[comment]]]{0," 
-                                                           +  (isFirstLoad ? 10 : 5) + "]");
+            try
+            {
+                var lastBuilds = await this.GetLastBuildFromAllJob();
 
-            var xmlHudson = xmlJenkinsJobs.Element("hubson") ?? throw new NotSupportedException("hudson xml root not found");
+                var jobChanges = new List<DtoJobChanged>();
+
+                foreach (var build in lastBuilds)
+                {
+                    var savedBuild = await this._dbContext.JenkinsJobs
+                        .FirstOrDefaultAsync(x => 
+                            x.BuildNumber == build.BuildNumber
+                            && x.JenkinsJobName == build.JenkinsJobName);
+
+                    if (savedBuild == null)
+                    {
+                        this._logger
+                            .ForContext("NewBuild", build, true)
+                            .Information("New Jenkins build found for job {jobName}", build.JenkinsJobName);
+
+                        var jc = new DtoJobChanged
+                        {
+                            OldBuildInfo = null,
+                            NewBuildInfo = build,
+                            BuildUri = await this.GetUriForBuild(build.JenkinsJobName, build.BuildNumber),
+                            ArtifactsUri = ""
+                        };
+
+                        jobChanges.Add(jc);
+
+                        this._dbContext.JenkinsJobs.Add(build);
+                        continue;
+                    }
+
+                    // Check only BuildIsProcessing, BuildStatus for generate DtoJobChanged (other statuses don't matter in "my logic")
+                    // BuildDuration also can be changed axiomatically
+                    // BuildName, BuildDescription can be changed by use (and sometimes we can lost changes (but it doesn't matter)
+                    if (savedBuild.BuildIsProcessing != build.BuildIsProcessing
+                        || savedBuild.BuildStatus != build.BuildStatus)
+                    {
+                        this._logger
+                            .ForContext("NewBuild", build, true)
+                            .Information("Jenkins build #{buildName} is significantly changed for job {jobName}", 
+                                build.BuildNumber,
+                                build.JenkinsJobName);
+
+                        var jc = new DtoJobChanged
+                        {
+                            OldBuildInfo = await this._dbContext.JenkinsJobs.AsNoTracking()
+                                .FirstAsync(x => x.BuildNumber == build.BuildNumber),
+                            NewBuildInfo = build,
+                            BuildUri = await this.GetUriForBuild(build.JenkinsJobName, build.BuildNumber),
+                            ArtifactsUri = ""
+                        };
+                        jobChanges.Add(jc);
+
+                        savedBuild.BuildIsProcessing = build.BuildIsProcessing;
+                        savedBuild.BuildStatus = build.BuildStatus;
+                    }
+
+                    if (savedBuild.BuildDuration != build.BuildDuration
+                        || savedBuild.BuildName != build.BuildName
+                        || savedBuild.BuildDescription != build.BuildDescription)
+                    {
+                        this._logger
+                            .ForContext("NewBuild", build, true)
+                            .Information("Jenkins build #{buildName} is significantly changed for job {jobName}",
+                                build.BuildNumber,
+                                build.JenkinsJobName);
+
+                        savedBuild.BuildDuration = build.BuildDuration;
+                        savedBuild.BuildName = build.BuildName;
+                        savedBuild.BuildDescription = build.BuildDescription;
+                    }
+                }
+
+                await this._dbContext.SaveChangesAsync();
+
+                // Return information only for tracking jobs
+                //jobChanges.RemoveAll(x => x.NewBuildInfo?.ProjectSysName != null);
+
+                return jobChanges;
+            }
+            catch (Exception e)
+            {
+                this._logger.Error(e, "Error while updating builds DB");
+                throw;
+            }
+        }
+
+        /// <summary> Disclosed project settings for easy of work </summary>
+        private class FlatProjectSettings
+        {
+            /// <summary> System name of project </summary>
+            public string ProjectSysName { get; set; }
+
+            /// <summary> Type of jobs </summary>
+            public EnumBuildServerJobs JobType { get; set; }
+
+            /// <summary> Url part </summary>
+            public string JobName { get; set; }
+
+        }
+
+        /// <summary> Get all disclosed project settings for easy of work </summary>
+        private Task<List<FlatProjectSettings>> GetFlatAllProjectSettings()
+        {
+            return this
+                ._dbContext.ProjectSettings.AsNoTracking()
+                .Include(x => x.JobInformations)
+                .SelectMany(p =>
+                    p.JobInformations.Select(ji =>
+                        new FlatProjectSettings
+                        {
+                            ProjectSysName = p.ProjectSysName,
+                            JobName = ji.JobPath,
+                            JobType = ji.JobType
+                        }
+                    ))
+                .ToListAsync();
+        }
+
+        /// <summary> Get all filled builds </summary>
+        private async Task<List<DbeJenkinsJob>> GetLastBuildFromAllJob()
+        {
+            var isFirstLoad = await this._dbContext.JenkinsJobs.AnyAsync();
+            var lastBuilds = await this.GetLastClearBuildFromJenkins(isFirstLoad);
+            var projectSettings = await this.GetFlatAllProjectSettings();
+
+            // Restore requested fields
+            foreach (var build in lastBuilds)
+            {
+                foreach (var projectSetting in projectSettings)
+                {
+                    if (build.JenkinsJobName.ToLower() == projectSetting.JobName.ToLower())
+                    {
+                        build.ProjectSysName = projectSetting.ProjectSysName;
+                        build.BuildSubType = projectSetting.JobType;
+                    }
+
+                    build.BuildStatus = (build.BuildIsProcessing, build.JenkinsBuildStatus.ToUpper()) switch
+                    {
+                        (_, "SUCCESS" ) => EnumBuildStatus.Success,
+                        (_, "FAILURE" ) => EnumBuildStatus.Failure,
+                        (_, "ABORTED" ) => EnumBuildStatus.Aborted,
+                        (_, "UNSTABLE") => EnumBuildStatus.Warning,
+                        var (isProcessing, strStatus) => ((Func<EnumBuildStatus>) (() =>
+                        {
+                            if (isProcessing)
+                                return EnumBuildStatus.Processing;
+
+
+                            this._logger.Warning("Undefined Jenkins build status {buildStatus} {JobName} {buildId}",
+                                strStatus,
+                                build.JenkinsJobName,
+                                build.BuildNumber);
+                            return EnumBuildStatus.NotDefined;
+                        }))()
+                    };
+                }
+            }
+
+            return lastBuilds;
+        }
+
+        /// <summary> Get "last" builds from clear Jenkins (does't fill ProjectSysName and some other fields aren't contained in Jenkins) </summary>
+        /// <param name="isFirstLoad">Is First load (request many-many builds). (If isn't first load - it loads only 5 last builds for each job)</param>
+        private async Task<List<DbeJenkinsJob>> GetLastClearBuildFromJenkins(bool isFirstLoad)
+        {
+            // /api/xml?tree=jobs[name,builds[number,fullDisplayName,displayName,description,result,timestamp,duration,building,actions[causes[shortDescription,userId,userName]],changeSets[items[comment]]]{0,5}]
+            var xmlJenkinsJobs = await this.ExecuteRequest(
+                "api/xml?tree=jobs[name,builds[number,fullDisplayName,displayName,description,result,timestamp,duration,building,actions[causes[shortDescription,userId,userName],lastBuiltRevision[branch[*]]],changeSets[items[comment]]]{0,"
+                + (isFirstLoad ? 10 : 5) + "}]");
+
+            var xmlHudson = xmlJenkinsJobs.Element("hudson") ?? throw new NotSupportedException("hudson xml root not found");
             var jenkinsJobs = new List<DbeJenkinsJob>();
 
             foreach (var xJob in xmlHudson.Elements("job"))
@@ -144,11 +332,11 @@ namespace JenkinsService.Jenkins
                 {
                     var jenkinsJob = new DbeJenkinsJob
                     {
-                        JenkinsProjectName = xJob.Element("name")?.Value ?? "",
+                        JenkinsJobName = xJob.Element("name")?.Value ?? "",
                         BuildNumber = xBuild.Element("number")?.Value ?? "",
                         BuildName = xBuild.Element("displayName")?.Value ?? "",
                         BuildDescription = xBuild.Element("description")?.Value ?? "",
-                        BuildStatus = xBuild.Element("result")?.Value ?? "",
+                        JenkinsBuildStatus = xBuild.Element("result")?.Value ?? "",
                         BuildIsProcessing = bool.Parse(xBuild.Element("building")?.Value ?? "false"),
                         ChangeInfos = new List<DbeJenkinsJob.ChangeInfo>()
                     };
@@ -162,7 +350,7 @@ namespace JenkinsService.Jenkins
                             jenkinsJob.BuildBranchName = xAction.Element("lastBuiltRevision")?
                                                              .Element("branch")?
                                                              .Element("name")?
-                                                             .Value 
+                                                             .Value
                                                          ?? "";
                         }
                         else if (className == "hudson.model.CauseAction")
@@ -171,7 +359,6 @@ namespace JenkinsService.Jenkins
                                                                  .Element("shortDescription")?
                                                                  .Value
                                                              ?? "";
-
                         }
                     }
 
@@ -206,10 +393,7 @@ namespace JenkinsService.Jenkins
                 }
             }
 
-            //jenkinsJobs
-
-            return new List<DtoJobChanged>();
+            return jenkinsJobs;
         }
-        
     }
 }

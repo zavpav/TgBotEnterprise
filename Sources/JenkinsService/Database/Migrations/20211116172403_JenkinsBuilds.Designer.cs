@@ -10,7 +10,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace JenkinsService.Database.Migrations
 {
     [DbContext(typeof(JenkinsDbContext))]
-    [Migration("20211114193828_JenkinsBuilds")]
+    [Migration("20211116172403_JenkinsBuilds")]
     partial class JenkinsBuilds
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -54,7 +54,7 @@ namespace JenkinsService.Database.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("BuildTupe")
+                    b.Property<string>("BuildSubType")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -62,14 +62,15 @@ namespace JenkinsService.Database.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("JenkinsProjectName")
+                    b.Property<string>("JenkinsBuildStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("JenkinsJobName")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ProjectSysName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserBotIdAssignOn")
                         .HasColumnType("text");
 
                     b.HasKey("Id");

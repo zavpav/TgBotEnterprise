@@ -25,6 +25,9 @@ namespace RabbitMessageCommunication
         /// <summary> Telegram service must send information about changed bugtracker issues </summary>
         public const string TelegramOutgoingIssuesChangedMessage = "TelegramOutgoingIssuesChangedMessage";
 
+        /// <summary> Telegram service must send information about changed build infromation </summary>
+        public const string TelegramOutgoingBuildChanged = "TelegramOutgoingBuildChanged";
+
         /// <summary> Publish information from telegram about new user </summary>
         public const string TelegramPublishNewUserFromTelegram = "TelegramPublishNewUserFromTelegram";
 
@@ -69,6 +72,13 @@ namespace RabbitMessageCommunication
 
         /// <summary> Information about changed issue </summary>
         public const string BugTrackerIssueChanged = "BugTrackerIssueChanged";
+
+        #endregion
+
+        #region BuildSystem
+
+        /// <summary> Information about changed build </summary>
+        public const string BuildSystemBuildChanged = "BuildSystemBuildChanged";
 
         #endregion
 

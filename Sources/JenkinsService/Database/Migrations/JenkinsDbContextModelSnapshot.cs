@@ -52,7 +52,7 @@ namespace JenkinsService.Database.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("BuildTupe")
+                    b.Property<string>("BuildSubType")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -60,14 +60,15 @@ namespace JenkinsService.Database.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("JenkinsProjectName")
+                    b.Property<string>("JenkinsBuildStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("JenkinsJobName")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ProjectSysName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserBotIdAssignOn")
                         .HasColumnType("text");
 
                     b.HasKey("Id");

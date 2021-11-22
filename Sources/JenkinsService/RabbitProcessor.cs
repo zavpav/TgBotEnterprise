@@ -10,6 +10,7 @@ using JenkinsService.Database;
 using JenkinsService.Jenkins;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
+using RabbitMessageCommunication.BuildService;
 using RabbitMessageCommunication.MainBot;
 using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
@@ -22,6 +23,7 @@ namespace JenkinsService.RabbitCommunication
     {
         private readonly ILogger _logger;
         private readonly IMapper _mapper;
+        private readonly IGlobalEventIdGenerator _eventIdGenerator;
         private readonly IRabbitService _rabbitService;
         private readonly JenkinsDbContext _dbContext;
         private readonly INodeInfo _nodeInfo;
@@ -30,11 +32,13 @@ namespace JenkinsService.RabbitCommunication
         public RabbitProcessor(INodeInfo nodeInfo, ILogger logger,
             IRabbitService rabbitService,
             IMapper mapper,
+            IGlobalEventIdGenerator eventIdGenerator,
             JenkinsDbContext dbContext)
         {
             this._logger = logger;
             this._rabbitService = rabbitService;
             this._mapper = mapper;
+            this._eventIdGenerator = eventIdGenerator;
             this._dbContext = dbContext;
             this._nodeInfo = nodeInfo;
             this._jenkinsCommunication = new JenkinsCommunication(logger, this._dbContext);
@@ -76,7 +80,17 @@ namespace JenkinsService.RabbitCommunication
         /// <param name="jobsChanges">Information about new finished jobs</param>
         public async Task SendUpdatedJobs(List<DtoJobChanged> jobsChanges)
         {
-            throw new NotImplementedException();
+            foreach (var jobChanged in jobsChanges)
+            {
+                var message = new BuildServiceBuildChangedMessage(this._eventIdGenerator.GetNextEventId());
+                message.ArtifactsUri = jobChanged.ArtifactsUri;
+                message.BuildUri = jobChanged.BuildUri;
+
+                message.OldVersion = this._mapper.Map<BuildInfo>(jobChanged.OldBuildInfo);
+                message.NewVersion = this._mapper.Map<BuildInfo>(jobChanged.NewBuildInfo);
+
+                await this._rabbitService.PublishInformation(RabbitMessages.BuildSystemBuildChanged, message);
+            }
         }
 
 

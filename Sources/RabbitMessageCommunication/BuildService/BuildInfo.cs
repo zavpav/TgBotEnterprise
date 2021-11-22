@@ -1,22 +1,28 @@
 ﻿using System;
-using System.Collections.Generic;
 using CommonInfrastructure;
-using RabbitMessageCommunication.BuildService;
 
-namespace JenkinsService.Database
+namespace RabbitMessageCommunication.BuildService
 {
-    /// <summary> Information about executed(-ing) jobs </summary>
-    public class DbeJenkinsJob
+    /// <summary> Information about changed build from Build System </summary>
+    public class BuildInfo
     {
-        /// <summary> Synthetic id </summary>
-        public int Id { get; set; }
+        /// <summary> Project sysname from bot system </summary>
+        public string? ProjectSysName { get; set; }
 
+        /// <summary> Type of build </summary>
+        public EnumBuildServerJobs BuildSubType { get; set; }
 
-        /// <summary> Jenkins name of project </summary>
-        public string JenkinsJobName { get; set; } = "";
+        /// <summary> Status of build </summary>
+        public EnumBuildStatus BuildStatus { get; set; }
 
         /// <summary> Information about user (or scm) who started job </summary>
-        public string JenkinsBuildStarter { get; set; } = "";
+        public string ExecuterInfo { get; set; } = "";
+
+        /// <summary> Information that the build is processing now </summary>
+        public bool IsProgressing { get; set; }
+
+        /// <summary> Job name of project (may be several for a botproject) </summary>
+        public string JobName { get; set; } = "";
 
         /// <summary> Number of job excution </summary>
         public string BuildNumber { get; set; } = "";
@@ -29,31 +35,12 @@ namespace JenkinsService.Database
         /// <remarks>Almost it is empty, but sometimes it may contains some information about dump file etc (for dumps) </remarks>
         public string BuildDescription { get; set; } = "";
 
-        /// <summary> Type of build </summary>
-        public EnumBuildServerJobs BuildSubType { get; set; }
-
-        /// <summary> Bot-build status </summary>
-        public EnumBuildStatus BuildStatus { get; set; }
-
-        /// <summary> Status of execution (SUCCESS, FAILURE, ABORTED) </summary>
-        public string JenkinsBuildStatus { get; set; } = "";
-
-        /// <summary> Information that the build is processing now </summary>
-        public bool BuildIsProcessing { get; set; }
-
         /// <summary> Duration of executing </summary>
         public TimeSpan BuildDuration { get; set; }
 
-        /// <summary> Git branch name </summary>
-        public string BuildBranchName { get; set; } = "";
-
-        /// <summary> Project sysname from bot system </summary>
-        public string? ProjectSysName { get; set; }
-
         /// <summary> Information about changes are included into build </summary>
-        public ICollection<ChangeInfo>? ChangeInfos { get; set; }
-        
-        
+        public ChangeInfo[]? ChangeInfos { get; set; }
+
         /// <summary> Information about changes from SCM </summary>
         /// <remarks>
         /// According to our requirements, the comment must have the format:
@@ -62,16 +49,6 @@ namespace JenkinsService.Database
         /// </remarks>
         public class ChangeInfo
         {
-            /// <summary> Synthetic id </summary>
-            public int Id { get; set; }
-
-            /// <summary> Reference to owner </summary>
-            public int JenkinsJobId { get; set; }
-            
-            /// <summary> Owner </summary>
-            public DbeJenkinsJob? JenkinsJob { get; set; }
-
-            
             /// <summary> Comment from git loaded by jenkins </summary>
             public string GitComment { get; set; } = "";
 
@@ -81,5 +58,6 @@ namespace JenkinsService.Database
             /// <summary> Issue id from comment </summary>
             public string? IssueId { get; set; }
         }
+
     }
 }
