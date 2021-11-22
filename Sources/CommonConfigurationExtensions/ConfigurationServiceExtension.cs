@@ -37,7 +37,9 @@ namespace CommonInfrastructure
             if (seqLogger != null)
             {
                 Log.Logger = new LoggerConfiguration()
+                    .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                
                     .Enrich.FromLogContext()
                     .Enrich.WithProperty("InfrastructureType", nodeInfo.ServicesType)
                     .Enrich.WithProperty("InfrastructureNodeName", nodeInfo.NodeName)
@@ -112,7 +114,7 @@ namespace CommonInfrastructure
                 Console.WriteLine($"PostgreConnection: {postgreHost}:{postgrePort}");
                 optionsBuilder
                     .UseNpgsql($"Host={postgreHost};Port={postgrePort};Database={dbName};Username={postgreUser};Password={postgrePassword}")
-                    .LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Error)
+                    //.LogTo(Console.WriteLine, Microsoft.Extensions.Logging.LogLevel.Error)
                     //.EnableSensitiveDataLogging()
                     .EnableDetailedErrors();
             });
