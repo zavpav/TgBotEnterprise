@@ -49,7 +49,7 @@ namespace CommonInfrastructure
             var unauthorizedReTry = false;
             Exception? ex = null;
 
-            logger.Information("Try to get redmine information {query}", uri);
+            logger.Information("Try to get HTTP XML information {query}", uri);
 
             while (reTry < DefaultReTriesCount)
             {

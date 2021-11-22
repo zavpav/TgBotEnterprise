@@ -30,7 +30,6 @@ namespace RedmineService.Redmine
 
 
         /// <summary> Get full prefix for "issue" </summary>
-        /// <returns></returns>
         /// <returns>Http part. If we concat this part with "issue num" we will receive full address for opening issue</returns>
         public async ValueTask<string> GetHttpPrefixOfIssue()
         {
