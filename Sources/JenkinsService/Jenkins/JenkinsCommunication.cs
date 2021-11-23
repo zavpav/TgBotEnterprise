@@ -341,6 +341,10 @@ namespace JenkinsService.Jenkins
                         ChangeInfos = new List<DbeJenkinsJob.ChangeInfo>()
                     };
 
+                    var durationText = xBuild.Element("duration")?.Value ?? "0";
+                    if (int.TryParse(durationText, out var durationMilliseconds))
+                        jenkinsJob.BuildDuration = TimeSpan.FromMilliseconds(durationMilliseconds);
+
                     // "Other" information about build
                     foreach (var xAction in xBuild.Elements("action"))
                     {

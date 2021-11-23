@@ -45,9 +45,8 @@ namespace MainBotService.RabbitCommunication
                     if (incomeMessage.IsDirectMessage)
                         return new List<TelegramOutgoingMessage>
                         {
-                            new TelegramOutgoingMessage
+                            new TelegramOutgoingMessage(incomeMessage.SystemEventId)
                             {
-                                SystemEventId = incomeMessage.SystemEventId,
                                 Message = "Who are you? " + incomeMessage.MessageText,
                                 ChatId = incomeMessage.ChatId
                             }
@@ -92,9 +91,8 @@ namespace MainBotService.RabbitCommunication
 
                     return new List<TelegramOutgoingMessage>
                     {
-                        new TelegramOutgoingMessage
+                        new TelegramOutgoingMessage(incomeMessage.SystemEventId)
                         {
-                            SystemEventId = incomeMessage.SystemEventId,
                             Message = sb.ToString(),
                             ChatId = incomeMessage.ChatId
                         }
@@ -105,9 +103,8 @@ namespace MainBotService.RabbitCommunication
 
                 return new List<TelegramOutgoingMessage>
                 {
-                    new TelegramOutgoingMessage
+                    new TelegramOutgoingMessage(incomeMessage.SystemEventId)
                     {
-                        SystemEventId = incomeMessage.SystemEventId,
                         Message = "Unknown command " + incomeMessage.MessageText,
                         ChatId = incomeMessage.ChatId
                     }
@@ -126,9 +123,8 @@ namespace MainBotService.RabbitCommunication
                 {
                     if (incomeMessage.IsDirectMessage)
                     {
-                        var outgoingMessage = new TelegramOutgoingMessage
+                        var outgoingMessage = new TelegramOutgoingMessage(incomeMessage.SystemEventId)
                         {
-                            SystemEventId = incomeMessage.SystemEventId,
                             Message = "Who are you? " + incomeMessage.MessageText,
                             ChatId = incomeMessage.ChatId
                         };

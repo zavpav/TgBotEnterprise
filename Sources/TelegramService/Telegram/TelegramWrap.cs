@@ -274,9 +274,14 @@ namespace TelegramService.Telegram
             this._logger
                 .ForContext("outgingMessage", messageData, true)
                 .Information(messageData, "Sending message to user");
+            if (messageData.Message.Length > 4000)
+            {
+                this._logger.Warning(messageData, "Message too long {len}", messageData.Message.Length);
+            }
+
             try
             {
-                var msg = await this._telegramBot.SendTextMessageAsync(chatId.Value, messageData.Message, replyToMessageId: messageData.MessageId ?? 0);
+                var msg = await this._telegramBot.SendTextMessageAsync(chatId.Value, messageData.Message.Substring(0, 4000), replyToMessageId: messageData.MessageId ?? 0);
             }
             catch (Exception e)
             {

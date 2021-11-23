@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,7 +11,7 @@ namespace RedmineService
 {
     public class RedmineWorker : BackgroundService
     {
-        private readonly IRabbitProcessor _rabbitProcessor;
+        private readonly RabbitProcessor _rabbitProcessor;
         private readonly RedmineDbContext _dbContext;
         private readonly ILogger _logger;
 
@@ -18,10 +19,12 @@ namespace RedmineService
             RedmineDbContext dbContext,
             ILogger logger)
         {
-            this._rabbitProcessor = rabbitProcessor;
+            this._rabbitProcessor = (RabbitProcessor)rabbitProcessor;
             this._dbContext = dbContext;
             this._logger = logger;
         }
+
+        private int _timeOutProblemCount = 0;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -31,10 +34,21 @@ namespace RedmineService
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                var changedIssues = await redmineCommunication.UpdateIssuesDb();
-                if (changedIssues.Count != 0)
-                    await ((RabbitProcessor) this._rabbitProcessor).SendUpdatedIssues(changedIssues);
-                
+                try
+                {
+                    var changedIssues = await redmineCommunication.UpdateIssuesDb();
+                    if (changedIssues.Count != 0)
+                        await ((RabbitProcessor) this._rabbitProcessor).SendUpdatedIssues(changedIssues);
+
+                    this._timeOutProblemCount = 0;
+                }
+                catch (Exception ex)
+                {
+                    await this._rabbitProcessor.SendProblemToAdmin(ex);
+                    this._timeOutProblemCount = this._timeOutProblemCount * 5 + 5;
+                    await Task.Delay(this._timeOutProblemCount * 1000, stoppingToken);
+                }
+
                 //_logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
                 await Task.Delay(10000, stoppingToken);
             }

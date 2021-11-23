@@ -1,3 +1,5 @@
+using System;
+using System.Net;
 using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,15 +23,27 @@ namespace JenkinsService
             this._jenkinsCommunication = jenkinsCommunication;
         }
 
+        private int _timeOutProblemCount = 0;
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             await this._jenkinsCommunication.UpdateDb();
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                var jobsChanges = await this._jenkinsCommunication.UpdateDb();
-                if (jobsChanges.Count != 0)
-                    await this._rabbitProcessor.SendUpdatedJobs(jobsChanges);
+                try
+                {
+                    var jobsChanges = await this._jenkinsCommunication.UpdateDb();
+                    if (jobsChanges.Count != 0)
+                        await this._rabbitProcessor.SendUpdatedJobs(jobsChanges);
+                    this._timeOutProblemCount = 0;
+                }
+                catch (Exception ex)
+                {
+                    await this._rabbitProcessor.SendProblemToAdmin(ex);
+                    this._timeOutProblemCount++;
+                    await Task.Delay(this._timeOutProblemCount * 5000, stoppingToken);
+                }
 
 
                 await Task.Delay(10000, stoppingToken);

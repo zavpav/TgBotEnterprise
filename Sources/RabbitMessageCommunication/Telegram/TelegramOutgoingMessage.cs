@@ -2,6 +2,10 @@
 {
     public class TelegramOutgoingMessage : IRabbitMessage
     {
+        public TelegramOutgoingMessage(string systemEventId)
+        {
+            this.SystemEventId = systemEventId;
+        }
         public string SystemEventId { get; set; }
 
         /// <summary> User id in bot-system </summary>

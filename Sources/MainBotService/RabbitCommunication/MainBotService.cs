@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -11,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.BugTracker;
 using RabbitMessageCommunication.BuildService;
+using RabbitMessageCommunication.Commmon;
 using RabbitMessageCommunication.MainBot;
 using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
@@ -52,6 +54,95 @@ namespace MainBotService.RabbitCommunication
         }
 
 
+        public void Subscribe()
+        {
+            this._rabbitService.Subscribe<ServiceProblemMessage>(null, 
+                RabbitMessages.ServiceProblem,
+                this.ProcessServiceProblem,
+                this._logger);
+
+            this._rabbitService.Subscribe<TelegramIncomeMessage>(EnumInfrastructureServicesType.Messaging,
+                RabbitMessages.TelegramMessageReceived,
+                this.ProcessIncomeTelegramMessage,
+                this._logger);
+
+            this._rabbitService.Subscribe<TelegramPublishNewUserFromTelegram>(EnumInfrastructureServicesType.Messaging,
+                RabbitMessages.TelegramPublishNewUserFromTelegram,
+                this.ProcessNewUserFromTelegram,
+                this._logger);
+
+            this._rabbitService.Subscribe<WebAdminUpdateUserInfo>(EnumInfrastructureServicesType.WebAdmin,
+                RabbitMessages.WebAdminPublishUpdateUser,
+                this.ProcessUpdateUserFromWebAdmin,
+                this._logger);
+
+            this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
+
+            this._rabbitService.RegisterDirectProcessor<EmptyMessage, ResponseAllUsersMessage>(
+                RabbitMessages.MainBotDirectGetAllUsers,
+                this.ProcessMainBotDirectGetAllUsers,
+                this._logger);
+
+            this._rabbitService.Subscribe<BugTrackerIssueChangedMessage>(EnumInfrastructureServicesType.BugTracker,
+                RabbitMessages.BugTrackerIssueChanged,
+                this.ProcessBugTrackerIssueChanged,
+                this._logger);
+
+            this._rabbitService.Subscribe<BuildServiceBuildChangedMessage>(EnumInfrastructureServicesType.BuildService,
+                RabbitMessages.BuildSystemBuildChanged,
+                this.ProcessBuildSystemBuildChanged,
+                this._logger);
+        }
+
+
+        /// <summary>
+        /// TODO MainAdminID TEST
+        /// </summary>
+        private string _adminId = "zavjalov";
+
+        private
+            ConcurrentDictionary<Tuple<string?, EnumInfrastructureServicesType , string >, DateTime> _serviceProblem 
+                = new ConcurrentDictionary<Tuple<string?, EnumInfrastructureServicesType, string>, DateTime>();
+
+        /// <summary> Process a big problem from any service </summary>
+        private async Task ProcessServiceProblem(ServiceProblemMessage message, IDictionary<string, string> rabbitMessageHeaders)
+        {
+            this._logger.Error("ServiceError {@serviceProblem}", message);
+
+            // Now I don't want to know any problem in a night :)
+            if (DateTime.Now.TimeOfDay < new TimeSpan(0, 11, 0))
+                return;
+
+            var key = Tuple.Create(message.ExceptionTypeName, message.ServicesType, message.NodeName);
+
+            this._serviceProblem.TryGetValue(key, out var lastUpdate);
+
+            // I don't want to get a lot information
+            if (DateTime.Now - lastUpdate > new TimeSpan(0, 20, 0))
+            {
+                var outgoingMessage = new TelegramOutgoingMessage(message.SystemEventId)
+                {
+                    BotUserId = this._adminId,
+                    Message = $"Problem with service {message.ServicesType} {message.NodeName}\n\n" +
+                              "Description: " + message.Description + "\n\n" +
+                              "Exception type: " + message.ExceptionTypeName + "\n\n" +
+                              "ExceptionInfo:\n" + message.ExceptionString + "\n\n" +
+                              "StackTrace:\n"+ message.ExceptionStackTrace
+                };
+
+                await this._rabbitService.PublishInformation(RabbitMessages.TelegramOutgoingMessage,
+                    outgoingMessage, EnumInfrastructureServicesType.Messaging);
+
+                lastUpdate = DateTime.Now;
+            }
+
+            this._serviceProblem.AddOrUpdate(key,
+                k => lastUpdate,
+                (k, v) => lastUpdate
+                );
+        }
+
+
         public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit, 
             string actionName, 
             IDictionary<string, string> messageHeaders,
@@ -89,41 +180,6 @@ namespace MainBotService.RabbitCommunication
             await Task.Delay(9000);
             Console.WriteLine($"{this._nodeInfo.NodeName} - {actionName} - {directMessage}");
             return directMessage;
-        }
-
-        public void Subscribe()
-        {
-            this._rabbitService.Subscribe<TelegramIncomeMessage>(EnumInfrastructureServicesType.Messaging,
-                RabbitMessages.TelegramMessageReceived,
-                this.ProcessIncomeTelegramMessage,
-                this._logger);
-
-            this._rabbitService.Subscribe<TelegramPublishNewUserFromTelegram>(EnumInfrastructureServicesType.Messaging,
-                RabbitMessages.TelegramPublishNewUserFromTelegram,
-                this.ProcessNewUserFromTelegram,
-                this._logger);
-
-            this._rabbitService.Subscribe<WebAdminUpdateUserInfo>(EnumInfrastructureServicesType.WebAdmin,
-                RabbitMessages.WebAdminPublishUpdateUser,
-                this.ProcessUpdateUserFromWebAdmin,
-                this._logger);
-
-            this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
-
-            this._rabbitService.RegisterDirectProcessor<EmptyMessage, ResponseAllUsersMessage>(
-                RabbitMessages.MainBotDirectGetAllUsers, 
-                this.ProcessMainBotDirectGetAllUsers, 
-                this._logger);
-
-            this._rabbitService.Subscribe<BugTrackerIssueChangedMessage>(EnumInfrastructureServicesType.BugTracker,
-                RabbitMessages.BugTrackerIssueChanged, 
-                this.ProcessBugTrackerIssueChanged, 
-                this._logger);
-
-            this._rabbitService.Subscribe<BuildServiceBuildChangedMessage>(EnumInfrastructureServicesType.BuildService,
-                RabbitMessages.BuildSystemBuildChanged,
-                this.ProcessBuildSystemBuildChanged,
-                this._logger);
         }
 
         private async Task ProcessBuildSystemBuildChanged(BuildServiceBuildChangedMessage message, IDictionary<string, string> rabbitMessageHeaders)
@@ -324,9 +380,8 @@ namespace MainBotService.RabbitCommunication
                 .Warning("Message unprocessed by conversations.");
 
             await this._rabbitService.PublishInformation(RabbitMessages.TelegramOutgoingMessage,
-                new TelegramOutgoingMessage
+                new TelegramOutgoingMessage(incomeMessage.SystemEventId)
                 {
-                    SystemEventId = incomeMessage.SystemEventId,
                     Message = "Not found action " + incomeMessage.MessageText,
                     ChatId = incomeMessage.ChatId
                 });

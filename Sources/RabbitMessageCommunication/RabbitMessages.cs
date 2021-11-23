@@ -11,6 +11,9 @@ namespace RabbitMessageCommunication
         /// <summary> Simple ping message </summary>
         public const string PingMessage = "PING";
 
+        /// <summary> Service has a big problem </summary>
+        public const string ServiceProblem = "ServiceProblem";
+
         #region Messages for/from telegram
 
         /// <summary> Telegram service received a message from user </summary>
@@ -81,6 +84,5 @@ namespace RabbitMessageCommunication
         public const string BuildSystemBuildChanged = "BuildSystemBuildChanged";
 
         #endregion
-
     }
 }

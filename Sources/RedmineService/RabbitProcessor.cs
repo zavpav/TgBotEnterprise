@@ -8,6 +8,7 @@ using CommonInfrastructure;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.BugTracker;
+using RabbitMessageCommunication.Commmon;
 using RabbitMessageCommunication.MainBot;
 using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
@@ -250,5 +251,25 @@ namespace RedmineService
             return "Response for " + directMessage;
         }
         #endregion
+
+        public async Task SendProblemToAdmin(Exception exception)
+        {
+            var message = new ServiceProblemMessage(this._eventIdGenerator.GetNextEventId(), this._nodeInfo.ServicesType, this._nodeInfo.NodeName)
+            {
+                ExceptionTypeName = exception.GetType().FullName,
+                ExceptionString = exception.ToString(),
+                ExceptionStackTrace = exception.StackTrace
+            };
+
+            try
+            {
+                await this._rabbitService.PublishInformation(RabbitMessages.ServiceProblem, message, EnumInfrastructureServicesType.Main);
+            }
+            catch (Exception e)
+            {
+                this._logger.Error(e, "Error while send error information");
+                throw;
+            }
+        }
     }
 }

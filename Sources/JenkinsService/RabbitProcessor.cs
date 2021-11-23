@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using AutoMapper;
@@ -11,6 +12,7 @@ using JenkinsService.Jenkins;
 using Microsoft.EntityFrameworkCore;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.BuildService;
+using RabbitMessageCommunication.Commmon;
 using RabbitMessageCommunication.MainBot;
 using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
@@ -157,6 +159,14 @@ namespace JenkinsService.RabbitCommunication
                 settings.Add(sett);
             }
 
+            settings.Add(new WebAdminResponseProjectSettingsMessage.SettingsItem
+            {
+                SystemName = "git:prefixesprojects",
+                Description = "Prefixes in comments for projects (commaseparated)",
+                SettingType = "string",
+                Value = projectSettings.GitProjectPrefixes
+            });
+
             responseProjectSettings.SettingsItems = settings.ToArray();
 
             this._logger.Information(responseProjectSettings, "Response project settings {@message}", responseProjectSettings);
@@ -202,6 +212,27 @@ namespace JenkinsService.RabbitCommunication
             // other settings
 
             await this._jenkinsCommunication.SaveProjectSettings(projectSettings);
+        }
+
+        /// <summary> Send problem to admin </summary>
+        public async Task SendProblemToAdmin(Exception exception)
+        {
+            var message = new ServiceProblemMessage(this._eventIdGenerator.GetNextEventId(), this._nodeInfo.ServicesType, this._nodeInfo.NodeName)
+            {
+                ExceptionTypeName = exception.GetType().FullName,
+                ExceptionString = exception.ToString(),
+                ExceptionStackTrace = exception.StackTrace
+            };
+
+            try
+            {
+                await this._rabbitService.PublishInformation(RabbitMessages.ServiceProblem, message, EnumInfrastructureServicesType.Main);
+            }
+            catch (Exception e)
+            {
+                this._logger.Error(e, "Error while send error information");
+                throw;
+            }
         }
     }
 }
