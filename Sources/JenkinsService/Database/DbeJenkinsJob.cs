@@ -80,6 +80,9 @@ namespace JenkinsService.Database
 
             /// <summary> Issue id from comment </summary>
             public string? IssueId { get; set; }
+
+            /// <summary> Project sysname from bot system </summary>
+            public string? ProjectSysName { get; set; }
         }
     }
 }

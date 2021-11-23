@@ -146,8 +146,6 @@ namespace JenkinsService.Jenkins
             }
         }
 
-        private readonly Regex _reGitComment = new Regex(@"^(?<prj>\S+)\s+#(?<num>\d+)\s+(?<cmmnt>.*)$");
-
         public async Task<List<DtoJobChanged>> UpdateDb()
         {
             try
@@ -271,12 +269,36 @@ namespace JenkinsService.Jenkins
                 .ToListAsync();
         }
 
+
+
+        /// <summary> Get project prefixes are used in git comments (as we can use) </summary>
+        private async Task<List<(string projectPrefix, string projectSysName)>> GetProjectPrefixes()
+        {
+            var allProjectPrefixes = await this._dbContext.ProjectSettings
+                .Where(x => x.GitProjectPrefixes != null && x.GitProjectPrefixes != "")
+                .Select(x => new {x.ProjectSysName, x.GitProjectPrefixes})
+                .ToListAsync();
+            var allPrefixes = allProjectPrefixes
+                .Where(x => !string.IsNullOrEmpty(x.GitProjectPrefixes))
+                .SelectMany(x => 
+                    x.GitProjectPrefixes.Split(',')
+                            .Select(xx => new {ProjectPrefix = xx.ToLower(), ProjectName = x.ProjectSysName})
+                ).ToList();
+
+            if (allPrefixes.Count == 0)
+                return new List<(string, string)>();
+
+            return allPrefixes.Select(x => (x.ProjectPrefix, x.ProjectName)).ToList();
+        }
+
         /// <summary> Get all filled builds </summary>
         private async Task<List<DbeJenkinsJob>> GetLastBuildFromAllJob()
         {
             var isFirstLoad = await this._dbContext.JenkinsJobs.AnyAsync();
             var lastBuilds = await this.GetLastClearBuildFromJenkins(isFirstLoad);
             var projectSettings = await this.GetFlatAllProjectSettings();
+            var gitPrefixes = await GetProjectPrefixes();
+            var reGitComment = new Regex(@"^(?<prj>\S+)\s+#(?<num>\d+)\s+(?<cmmnt>.*)$", RegexOptions.Compiled |  RegexOptions.IgnoreCase);
 
             // Restore requested fields
             foreach (var build in lastBuilds)
@@ -288,27 +310,52 @@ namespace JenkinsService.Jenkins
                         build.ProjectSysName = projectSetting.ProjectSysName;
                         build.BuildSubType = projectSetting.JobType;
                     }
-
-                    build.BuildStatus = (build.BuildIsProcessing, build.JenkinsBuildStatus.ToUpper()) switch
-                    {
-                        (_, "SUCCESS" ) => EnumBuildStatus.Success,
-                        (_, "FAILURE" ) => EnumBuildStatus.Failure,
-                        (_, "ABORTED" ) => EnumBuildStatus.Aborted,
-                        (_, "UNSTABLE") => EnumBuildStatus.Warning,
-                        var (isProcessing, strStatus) => ((Func<EnumBuildStatus>) (() =>
-                        {
-                            if (isProcessing)
-                                return EnumBuildStatus.Processing;
-
-
-                            this._logger.Warning("Undefined Jenkins build status {buildStatus} {JobName} {buildId}",
-                                strStatus,
-                                build.JenkinsJobName,
-                                build.BuildNumber);
-                            return EnumBuildStatus.NotDefined;
-                        }))()
-                    };
                 }
+
+                build.BuildStatus = (build.BuildIsProcessing, build.JenkinsBuildStatus.ToUpper()) switch
+                {
+                    (_, "SUCCESS") => EnumBuildStatus.Success,
+                    (_, "FAILURE") => EnumBuildStatus.Failure,
+                    (_, "ABORTED") => EnumBuildStatus.Aborted,
+                    (_, "UNSTABLE") => EnumBuildStatus.Warning,
+                    var (isProcessing, strStatus) => ((Func<EnumBuildStatus>)(() =>
+                    {
+                        if (isProcessing)
+                            return EnumBuildStatus.Processing;
+
+
+                        this._logger.Warning("Undefined Jenkins build status {buildStatus} {JobName} {buildId}",
+                            strStatus,
+                            build.JenkinsJobName,
+                            build.BuildNumber);
+                        return EnumBuildStatus.NotDefined;
+                    }))()
+                };
+
+                if (build.ChangeInfos != null)
+                {
+                    foreach (var gitChange in build.ChangeInfos)
+                    {
+                        foreach (var prefixTuple in gitPrefixes)
+                        {
+                            if (gitChange.GitComment.ToLower().StartsWith(prefixTuple.projectPrefix))
+                            {
+                                gitChange.ProjectName = prefixTuple.projectPrefix;
+                                gitChange.ProjectSysName = prefixTuple.projectSysName;
+
+                                var reMatch = reGitComment.Match(gitChange.GitComment);
+                                if (reMatch.Success)
+                                {
+                                    gitChange.IssueId = reMatch.Groups["num"].Value;
+                                    gitChange.ProjectName = reMatch.Groups["prj"].Value;
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+                }
+
             }
 
             return lastBuilds;
@@ -382,13 +429,6 @@ namespace JenkinsService.Jenkins
                                 GitComment = jenComment
                             };
 
-                            var reMatch = this._reGitComment.Match(jenComment);
-                            if (reMatch.Success)
-                            {
-                                gitChange.IssueId = reMatch.Groups["num"].Value;
-                                gitChange.ProjectName = reMatch.Groups["prj"].Value;
-                            }
-
                             jenkinsJob.ChangeInfos.Add(gitChange);
                         }
                     }
@@ -398,6 +438,37 @@ namespace JenkinsService.Jenkins
             }
 
             return jenkinsJobs;
+        }
+
+        /// <summary> preAlpha for method of identify project for gitcommits </summary>
+        public async Task UpdateGitCommentInfo()
+        {
+            var allComments = await this._dbContext.Set<DbeJenkinsJob.ChangeInfo>().ToListAsync();
+            var gitPrefixes = await this.GetProjectPrefixes();
+            var reGitComment = new Regex(@"^(?<prj>\S+)\s+#(?<num>\d+)\s+(?<cmmnt>.*)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+            foreach (var gitChange in allComments)
+            {
+                foreach (var prefixTuple in gitPrefixes)
+                {
+                    if (gitChange.GitComment.ToLower().StartsWith(prefixTuple.projectPrefix))
+                    {
+                        gitChange.ProjectName = prefixTuple.projectPrefix;
+                        gitChange.ProjectSysName = prefixTuple.projectSysName;
+
+                        var reMatch = reGitComment.Match(gitChange.GitComment);
+                        if (reMatch.Success)
+                        {
+                            gitChange.IssueId = reMatch.Groups["num"].Value;
+                            gitChange.ProjectName = reMatch.Groups["prj"].Value;
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            await this._dbContext.SaveChangesAsync();
         }
     }
 }

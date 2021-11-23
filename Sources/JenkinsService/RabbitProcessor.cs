@@ -117,6 +117,7 @@ namespace JenkinsService.RabbitCommunication
         }
 
         private const string JobUrlPrefix = "JobUrl";
+        private const string GitPrefixesProjectsSettingsName = "git:prefixesprojects";
 
         /// <summary> Processing request settings message  </summary>
         private async Task ProcessProjectSettingsRequest(WebAdminRequestProjectSettingsMessage message, IDictionary<string, string> rabbitMessageHeaders)
@@ -161,7 +162,7 @@ namespace JenkinsService.RabbitCommunication
 
             settings.Add(new WebAdminResponseProjectSettingsMessage.SettingsItem
             {
-                SystemName = "git:prefixesprojects",
+                SystemName = GitPrefixesProjectsSettingsName,
                 Description = "Prefixes in comments for projects (commaseparated)",
                 SettingType = "string",
                 Value = projectSettings.GitProjectPrefixes
@@ -209,6 +210,9 @@ namespace JenkinsService.RabbitCommunication
                     singleJobInfo.JobPath = jobPath?.Value ?? "";
                 }
             }
+
+            var gitProjectsPrefixes = message.SettingsItems.SingleOrDefault(x => x.SystemName == GitPrefixesProjectsSettingsName);
+            projectSettings.GitProjectPrefixes = gitProjectsPrefixes == null ? "" : gitProjectsPrefixes.Value;
             // other settings
 
             await this._jenkinsCommunication.SaveProjectSettings(projectSettings);

@@ -33,6 +33,9 @@ namespace JenkinsService.Database
         [Required]
         public string ProjectSysName { get; set; }
 
+        /// <summary> Prefixes for projects in git comments </summary>
+        public string GitProjectPrefixes { get; set; }
+
         /// <summary> System name of project </summary>
         public ICollection<JobDescription> JobInformations { get; set; }
 
