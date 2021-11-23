@@ -88,11 +88,11 @@ namespace RabbitMqInfrastructure
             });
         }
 
-        public static async Task PublishInformation<T>(this IRabbitService rabbitService, string actionName, T messageData, EnumInfrastructureServicesType? subscriberServiceType = null)
+        public static Task PublishInformation<T>(this IRabbitService rabbitService, string actionName, T messageData, EnumInfrastructureServicesType? subscriberServiceType = null)
         where T : IRabbitMessage
         {
             var jsonMessage = JsonSerializer.Serialize(messageData);
-            await rabbitService.PublishInformation(actionName, jsonMessage, subscriberServiceType, messageData.SystemEventId);
+            return rabbitService.PublishInformation(actionName, jsonMessage, subscriberServiceType, messageData.SystemEventId);
         }
 
         /// <summary> Direct request to MainBot </summary>
@@ -102,12 +102,12 @@ namespace RabbitMqInfrastructure
         /// <param name="actionName">Action</param>
         /// <param name="messageData">Request message</param>
         /// <returns>Response message</returns>
-        public static async Task<TO> DirectRequestToMainBot<TI, TO>(this IRabbitService rabbitService,
+        public static Task<TO> DirectRequestToMainBot<TI, TO>(this IRabbitService rabbitService,
             string actionName, TI messageData)
         where TI : IRabbitMessage
         where TO : IRabbitMessage
         {
-            return await rabbitService.DirectRequestTo<TI, TO>(EnumInfrastructureServicesType.Main, actionName, messageData);
+            return rabbitService.DirectRequestTo<TI, TO>(EnumInfrastructureServicesType.Main, actionName, messageData);
         }
 
         /// <summary> Direct request for another service </summary>
