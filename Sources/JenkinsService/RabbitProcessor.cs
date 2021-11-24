@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Reflection;
@@ -76,7 +77,43 @@ namespace JenkinsService.RabbitCommunication
                 this._logger);
 
             this._rabbitService.RegisterDirectProcessor(RabbitMessages.PingMessage, RabbitSimpleProcessors.DirectPingProcessor);
+
+            this._rabbitService.RegisterDirectProcessor<BuildServiceFindBuildByIssueNumRequestMessage, BuildServiceFindBuildByIssueNumResponseMessage>(
+                RabbitMessages.BuildServiceFindBuildByIssueNum,
+                this.ProcessBuildServiceFindBuildByIssueNum,
+                this._logger);
         }
+
+        private async Task<BuildServiceFindBuildByIssueNumResponseMessage> ProcessBuildServiceFindBuildByIssueNum(BuildServiceFindBuildByIssueNumRequestMessage message, IDictionary<string, string> rabbitmessageheaders)
+        {
+            await Task.Yield();
+            await this._jenkinsCommunication.UpdateDb();
+
+
+#pragma warning disable CS8604 // Possible null reference argument.
+            var res = await this._dbContext.JenkinsJobs
+                .AsNoTracking()
+                .Include(x => x.ChangeInfos.Where(xx => xx.IssueId == message.IssueNum))
+                .Where(x => x.ChangeInfos.Count(xx => xx.IssueId == message.IssueNum) != 0)
+                .ToListAsync();
+#pragma warning restore CS8604 // Possible null reference argument.
+
+            if (res.Count == 0)
+                return new BuildServiceFindBuildByIssueNumResponseMessage(message.SystemEventId, message.IssueNum);
+
+            return new BuildServiceFindBuildByIssueNumResponseMessage(message.SystemEventId, message.IssueNum)
+            {
+                BuildCommentsInfo = res
+                    .SelectMany(x =>
+                    {
+                        Debug.Assert(x.ChangeInfos != null, "x.ChangeInfos != null");
+                        return x.ChangeInfos?
+                            .Select(xx => Tuple.Create(x.BuildNumber, xx.GitComment));
+                    })
+                    .ToArray()
+            };
+        }
+
 
         /// <summary> Send new job information </summary>
         /// <param name="jobsChanges">Information about new finished jobs</param>

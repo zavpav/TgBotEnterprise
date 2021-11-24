@@ -11,6 +11,9 @@
         /// <summary> Event Id - Unique id in all services </summary>
         public string SystemEventId { get; }
 
+        /// <summary> Array of needed issues </summary>
+        public string[]? IssueNums { get; set; }
+
         /// <summary> Request tasks by project </summary>
         public string? FilterProjectSysName { get; set; }
 

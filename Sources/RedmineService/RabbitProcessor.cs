@@ -177,6 +177,7 @@ namespace RedmineService
                 sendUpdatedIssues = this.SendUpdatedIssues(changedIssues);
 
             var foundIssues = await this._redmineService.SimpleFindIssues(
+                requestMessage.IssueNums,
                 requestMessage.FilterUserBotId,
                 requestMessage.FilterProjectSysName, 
                 requestMessage.FilterVersionText);

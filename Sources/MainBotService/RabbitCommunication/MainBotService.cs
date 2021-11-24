@@ -53,6 +53,7 @@ namespace MainBotService.RabbitCommunication
             this._redmineProcessor = new RedmineProcessor(this, this._logger);
         }
 
+        public IRabbitService RabbitService() => this._rabbitService;
 
         public void Subscribe()
         {

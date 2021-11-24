@@ -5,6 +5,7 @@ using CommonInfrastructure;
 using MainBotService.Database;
 using RabbitMessageCommunication;
 using RabbitMessageCommunication.BugTracker;
+using RabbitMqInfrastructure;
 
 namespace MainBotService.RabbitCommunication
 {
@@ -27,6 +28,9 @@ namespace MainBotService.RabbitCommunication
         /// <param name="actionName">Action name</param>
         /// <param name="outgoingMessage">Message</param>
         /// <param name="subscriberServiceType">serviceType</param>
-        Task PublishMessage<T>(string actionName, T outgoingMessage, EnumInfrastructureServicesType? subscriberServiceType = null) where T: IRabbitMessage; 
+        Task PublishMessage<T>(string actionName, T outgoingMessage, EnumInfrastructureServicesType? subscriberServiceType = null) where T: IRabbitMessage;
+
+        /// <summary> Rabbit service </summary>
+        IRabbitService RabbitService();
     }
 }

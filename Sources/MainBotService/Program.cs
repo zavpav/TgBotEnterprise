@@ -44,6 +44,7 @@ namespace MainBotService
                     services.AddSingleton<IMainBotService, RabbitCommunication.MainBotService>();
                     services.AddTransient<ITelegramConversation, MyTasksConversation>();
                     services.AddTransient<ITelegramConversation, VersionTasksConversation>();
+                    services.AddTransient<ITelegramConversation, TaskBuildInformationConversation>();
                 });
     }
 }

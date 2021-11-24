@@ -139,16 +139,26 @@ namespace RedmineService.Redmine
         }
 
         /// <summary> Get issues by "simple filter" </summary>
+        /// <param name="issuesNums">Specified issues</param>
         /// <param name="userBotId">User botId</param>
         /// <param name="projectSysName">Name of project in bot system</param>
         /// <param name="versionText">Version name as text (required projectSysName)</param>
-        public async Task<List<DbeIssue>> SimpleFindIssues(string? userBotId,
+        public async Task<List<DbeIssue>> SimpleFindIssues(string[]? issuesNums, string? userBotId,
             string? projectSysName,
             string? versionText)
         {
             await Task.Yield();
 
             var issuesQuery = this._dbContext.Issues.AsQueryable();
+            if (issuesNums != null)
+            {
+                if (issuesNums.Length != 1)
+                {
+                    this._logger.Error("FIXXXX Load only 1 issue num");
+                }
+
+                issuesQuery = issuesQuery.Where(x => x.Num == issuesNums[0]);
+            }
             if (userBotId != null)
                 issuesQuery = issuesQuery.Where(x => x.UserBotIdAssignOn == userBotId);
             if (projectSysName != null)

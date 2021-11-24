@@ -6,6 +6,7 @@
         {
             this.SystemEventId = systemEventId;
         }
+
         public string SystemEventId { get; set; }
 
         /// <summary> User id in bot-system </summary>

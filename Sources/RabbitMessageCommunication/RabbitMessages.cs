@@ -83,6 +83,11 @@ namespace RabbitMessageCommunication
         /// <summary> Information about changed build </summary>
         public const string BuildSystemBuildChanged = "BuildSystemBuildChanged";
 
+
+        /// <summary> Request information from build service by issue number </summary>
+        public const string BuildServiceFindBuildByIssueNum = "BuildServiceFindBuildByIssueNum";
+
         #endregion
+
     }
 }

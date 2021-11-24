@@ -29,7 +29,7 @@ namespace JenkinsService
         {
             await this._jenkinsCommunication.UpdateDb();
 
-            await this._jenkinsCommunication.UpdateGitCommentInfo();
+            //await this._jenkinsCommunication.UpdateGitCommentInfo();
 
             while (!stoppingToken.IsCancellationRequested)
             {
