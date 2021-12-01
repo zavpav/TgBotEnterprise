@@ -237,7 +237,7 @@ namespace MainBotService.RabbitCommunication
             {
                 if (message.RedmineUserLastChanged.All(x => x == message.NewVersion.RedmineAssignOn))
                 {
-                    this._logger.Information("Ignore message processing. All changed users are the Assigned user '{RedmineAssignOn}'", message.NewVersion.RedmineAssignOn);
+                    this._logger.Information(message, "Ignore message processing. All changed users are the Assigned user '{RedmineAssignOn}'", message.NewVersion.RedmineAssignOn);
                     return;
                 }
             }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using AutoMapper;
@@ -101,16 +100,26 @@ namespace JenkinsService.RabbitCommunication
             if (res.Count == 0)
                 return new BuildServiceFindBuildByIssueNumResponseMessage(message.SystemEventId, message.IssueNum);
 
+            var buildCommentsInfos = res
+                .SelectMany(x =>
+                {
+
+                    Debug.Assert(x.ChangeInfos != null, "x.ChangeInfos != null");
+                    var commentsInfos = x.ChangeInfos?
+                        .Select(xx => new BuildServiceFindBuildByIssueNumResponseMessage.BuildCommentsInfo
+                        {
+                            ProjectSysName = x.ProjectSysName,
+                            JenkinsJobName = x.JenkinsJobName,
+                            BuildNum = x.BuildNumber,
+                            GitComment = xx.GitComment
+                        });
+                    return commentsInfos ?? Enumerable.Empty<BuildServiceFindBuildByIssueNumResponseMessage.BuildCommentsInfo>();
+                })
+                .ToArray();
+
             return new BuildServiceFindBuildByIssueNumResponseMessage(message.SystemEventId, message.IssueNum)
             {
-                BuildCommentsInfo = res
-                    .SelectMany(x =>
-                    {
-                        Debug.Assert(x.ChangeInfos != null, "x.ChangeInfos != null");
-                        return x.ChangeInfos?
-                            .Select(xx => Tuple.Create(x.BuildNumber, xx.GitComment));
-                    })
-                    .ToArray()
+                BuildCommentsInfos = buildCommentsInfos
             };
         }
 

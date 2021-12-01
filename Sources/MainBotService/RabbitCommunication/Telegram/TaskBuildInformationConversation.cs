@@ -55,7 +55,7 @@ namespace MainBotService.RabbitCommunication.Telegram
                 requestMessage
             );
 
-            if (responseMessage.BuildCommentsInfo == null)
+            if (responseMessage.BuildCommentsInfos == null)
             {
                 var outgoingMessage = new TelegramOutgoingMessage(this._mainBot.GetNextEventId())
                 {
@@ -86,39 +86,57 @@ namespace MainBotService.RabbitCommunication.Telegram
                         .ForContext("IssueInfo", responseMessageIssue, true)
                         .Error("Some strange. Bug tracker return too many issues");
 
+                var bugTrackerIssue = responseMessageIssue.Issues?[0];
+
                 var sb = new StringBuilder(100);
                 sb.Append("По задаче #");
                 sb.Append(responseMessage.IssueNum);
                 sb.Append("\n");
-                sb.Append(responseMessageIssue.Issues?[0].Subject ?? "<Информация по задаче не найдена>");
+                sb.Append(bugTrackerIssue?.Subject ?? "<Информация по задаче не найдена>");
                 sb.Append("\n");
                 sb.Append("Статус: ");
-                sb.Append(responseMessageIssue.Issues?[0].RedmineStatus ?? "<Не знаю>");
+                sb.Append(bugTrackerIssue?.RedmineStatus ?? "<Не знаю>");
                 sb.Append("\n");
 
 
-                foreach (var commentsByBuild in responseMessage
-                    .BuildCommentsInfo
-                    .GroupBy(x => x.Item1)
-                    .OrderByDescending(x =>
+                foreach (var commentsByProject in responseMessage
+                    .BuildCommentsInfos
+                    .GroupBy(x => x.ProjectSysName)
+                    .OrderBy(x =>
                     {
-                        if (int.TryParse(x.Key, out var issueNumNum))
-                            return issueNumNum;
-                        
-                        return int.MinValue;
+                        if (x.Key == bugTrackerIssue.ProjectSysName)
+                            return "1";
+                        if (string.IsNullOrEmpty(x.Key))
+                            return "Z";
+                        return "9" + x.Key;
                     })
                 )
                 {
                     sb.Append("\n");
-                    sb.Append("Сборка #");
-                    sb.Append(commentsByBuild.Key);
-                    sb.Append("\n");
+                    sb.Append("Проект ");
+                    sb.Append(commentsByProject.Key);
 
-                    foreach (var cmm in commentsByBuild)
+                    foreach (var commentsByBuild in commentsByProject.GroupBy(x => x.BuildNum)
+                        .OrderByDescending(x =>
+                        {
+                            if (int.TryParse(x.Key, out var issueNumNum))
+                                return issueNumNum;
+
+                            return int.MinValue;
+                        }))
                     {
-                        sb.Append("  ");
-                        sb.Append(cmm.Item2);
+
                         sb.Append("\n");
+                        sb.Append("Сборка #");
+                        sb.Append(commentsByBuild.Key);
+                        sb.Append("\n");
+
+                        foreach (var cmm in commentsByBuild)
+                        {
+                            sb.Append("  ");
+                            sb.Append(cmm.GitComment?.Trim());
+                            sb.Append("\n");
+                        }
                     }
                 }
 

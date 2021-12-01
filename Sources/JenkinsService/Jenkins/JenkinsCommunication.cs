@@ -157,6 +157,7 @@ namespace JenkinsService.Jenkins
                 foreach (var build in lastBuilds)
                 {
                     var savedBuild = await this._dbContext.JenkinsJobs
+                        .Include(x => x.ChangeInfos)
                         .FirstOrDefaultAsync(x => 
                             x.BuildNumber == build.BuildNumber
                             && x.JenkinsJobName == build.JenkinsJobName);
@@ -205,6 +206,21 @@ namespace JenkinsService.Jenkins
 
                         savedBuild.BuildIsProcessing = build.BuildIsProcessing;
                         savedBuild.BuildStatus = build.BuildStatus;
+
+                    }
+
+                    // When we get information about just started job we might not receive information about commits.
+                    // So... check this case
+                    if (savedBuild.ChangeInfos?.Count == 0 && build.ChangeInfos?.Count > 0)
+                    {
+                        savedBuild.ChangeInfos = build.ChangeInfos.ToList();
+                        // binding to "build" object doesn't matter. Rebind to "savedBuild"
+                        savedBuild.ChangeInfos
+                            .ForEach(x =>
+                        {
+                            x.JenkinsJob = savedBuild;
+                            x.JenkinsJobId = savedBuild.Id;
+                        });
                     }
 
                     if (savedBuild.BuildDuration != build.BuildDuration
