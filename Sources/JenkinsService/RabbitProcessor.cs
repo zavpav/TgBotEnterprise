@@ -27,7 +27,7 @@ namespace JenkinsService.RabbitCommunication
         private readonly IMapper _mapper;
         private readonly IGlobalEventIdGenerator _eventIdGenerator;
         private readonly IRabbitService _rabbitService;
-        private readonly JenkinsDbContext _dbContext;
+        private readonly IDbContextFactory<JenkinsDbContext> _dbContextFactory;
         private readonly INodeInfo _nodeInfo;
         private readonly JenkinsCommunication _jenkinsCommunication;
 
@@ -35,15 +35,15 @@ namespace JenkinsService.RabbitCommunication
             IRabbitService rabbitService,
             IMapper mapper,
             IGlobalEventIdGenerator eventIdGenerator,
-            JenkinsDbContext dbContext)
+            IDbContextFactory<JenkinsDbContext> dbContextFactory)
         {
             this._logger = logger;
             this._rabbitService = rabbitService;
             this._mapper = mapper;
             this._eventIdGenerator = eventIdGenerator;
-            this._dbContext = dbContext;
+            this._dbContextFactory = dbContextFactory;
             this._nodeInfo = nodeInfo;
-            this._jenkinsCommunication = new JenkinsCommunication(logger, this._dbContext);
+            this._jenkinsCommunication = new JenkinsCommunication(logger, this._dbContextFactory);
         }
 
         public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit,
@@ -88,9 +88,10 @@ namespace JenkinsService.RabbitCommunication
             await Task.Yield();
             await this._jenkinsCommunication.UpdateDb();
 
+            await using var db = this._dbContextFactory.CreateDbContext();
 
 #pragma warning disable CS8604 // Possible null reference argument.
-            var res = await this._dbContext.JenkinsJobs
+            var res = await db.JenkinsJobs
                 .AsNoTracking()
                 .Include(x => x.ChangeInfos.Where(xx => xx.IssueId == message.IssueNum))
                 .Where(x => x.ChangeInfos.Count(xx => xx.IssueId == message.IssueNum) != 0)
@@ -144,21 +145,23 @@ namespace JenkinsService.RabbitCommunication
 
         private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
         {
-            var usrInfo = await this._dbContext.UsersInfo
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var usrInfo = await db.UsersInfo
                 .FirstOrDefaultAsync(x => x.BotUserId == (message.OriginalBotUserId ?? message.BotUserId));
             if (usrInfo == null)
             {
                 this._logger.Information(message, "User doesn't exist {@newUserMessage}", message);
                 var usr = this._mapper.Map<DbeUserInfo>(message);
-                await this._dbContext.UsersInfo.AddAsync(usr);
-                await this._dbContext.SaveChangesAsync();
+                await db.UsersInfo.AddAsync(usr);
+                await db.SaveChangesAsync();
             }
             else
             {
                 this._logger.Information(message, "User exist {@oldUserInfo} {@newUserMessage}", usrInfo, message);
                 usrInfo = this._mapper.Map(message, usrInfo);
-                this._dbContext.UsersInfo.Update(usrInfo);
-                await this._dbContext.SaveChangesAsync();
+                db.UsersInfo.Update(usrInfo);
+                await db.SaveChangesAsync();
             }
         }
 

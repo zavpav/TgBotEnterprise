@@ -29,7 +29,7 @@ namespace MainBotService.RabbitCommunication
         private readonly IGlobalEventIdGenerator _eventIdGenerator;
         private readonly IRabbitService _rabbitService;
         private readonly IMapper _mapper;
-        private readonly BotServiceDbContext _dbContext;
+        private readonly IDbContextFactory<BotServiceDbContext> _dbContextFactory;
 
         private readonly TelegramProcessor _telegramProcessor;
         private readonly RedmineProcessor _redmineProcessor;
@@ -40,14 +40,14 @@ namespace MainBotService.RabbitCommunication
             IRabbitService rabbitService,
             IMapper mapper,
             Lazy<IEnumerable<ITelegramConversation>> telegraConversations,
-            BotServiceDbContext dbContext)
+            IDbContextFactory<BotServiceDbContext> dbContextFactory)
         {
             this._nodeInfo = nodeInfo;
             this._logger = logger;
             this._eventIdGenerator = eventIdGenerator;
             this._rabbitService = rabbitService;
             this._mapper = mapper;
-            this._dbContext = dbContext;
+            this._dbContextFactory = dbContextFactory;
 
             this._telegramProcessor = new TelegramProcessor(this, telegraConversations, this._logger);
             this._redmineProcessor = new RedmineProcessor(this, this._logger);
@@ -149,6 +149,8 @@ namespace MainBotService.RabbitCommunication
             IDictionary<string, string> messageHeaders,
             string directMessage)
         {
+            await using var db = this._dbContextFactory.CreateDbContext();
+
             this._logger.Information("Untrack Info Direct request {actionName} message data {directMessage}", actionName, directMessage);
 
             if (actionName.ToUpper() == RabbitMessages.MainBotProjectsInfoRequest.ToUpper())
@@ -162,12 +164,12 @@ namespace MainBotService.RabbitCommunication
                 {
                     allProjects = new List<DbeProject>();
 
-                    var singleProj = await this._dbContext.Projects.SingleOrDefaultAsync(x => x.SysName == requestProjectsMessage.ProjectSysName);
+                    var singleProj = await db.Projects.AsNoTracking().SingleOrDefaultAsync(x => x.SysName == requestProjectsMessage.ProjectSysName);
                     if (singleProj != null)
                         allProjects.Add(singleProj);
                 }
                 else
-                    allProjects = await this._dbContext.Projects.ToListAsync();
+                    allProjects = await db.Projects.AsNoTracking().ToListAsync();
 
                 var allUsersPack = this._mapper.Map<MainBotProjectInfo[]>(allProjects.ToArray()) ?? new MainBotProjectInfo[0];
 
@@ -308,8 +310,9 @@ namespace MainBotService.RabbitCommunication
         private async Task<ResponseAllUsersMessage> ProcessMainBotDirectGetAllUsers(EmptyMessage message, IDictionary<string, string> rabbitMessageHeaders)
         {
             this._logger.Information(message, "Processing ProcessMainBotDirectGetAllUsers");
+            await using var db = this._dbContextFactory.CreateDbContext();
 
-            var allUsers = await this._dbContext.UsersInfo.ToListAsync();
+            var allUsers = await db.UsersInfo.AsNoTracking().ToListAsync();
             var allUsersPack = this._mapper.Map<ResponseAllUsersMessage.UserInfo[]>(allUsers.ToArray())
                                ?? new ResponseAllUsersMessage.UserInfo[0];
 
@@ -409,12 +412,13 @@ namespace MainBotService.RabbitCommunication
         /// <summary> Update local databse from message if user doesn't exist</summary>
         private async Task UpdateUserInfoFromTelegram(string botUserId)
         {
-            var userExists = this._dbContext.UsersInfo.Any(x => x.BotUserId == botUserId);
+            await using var db = this._dbContextFactory.CreateDbContext();
+            var userExists = db.UsersInfo.Any(x => x.BotUserId == botUserId);
             if (!userExists)
             {
                 var userInfo = new DbeUserInfo { BotUserId = botUserId, WhoIsThis = botUserId };
-                this._dbContext.UsersInfo.Add(userInfo);
-                await this._dbContext.SaveChangesAsync();
+                db.UsersInfo.Add(userInfo);
+                await db.SaveChangesAsync();
             }
         }
 
@@ -468,7 +472,9 @@ namespace MainBotService.RabbitCommunication
         /// <summary> Process user information </summary>
         private async Task ProcessUpdateUser(string findBotId, string eventId, Func<DbeUserInfo?, DbeUserInfo> updateFunc)
         {
-            var user = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.BotUserId == findBotId);
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var user = await db.UsersInfo.FirstOrDefaultAsync(x => x.BotUserId == findBotId);
             if (user != null) // Maybe exists, if telegram message process first
             {
                 user = updateFunc(user);
@@ -479,8 +485,8 @@ namespace MainBotService.RabbitCommunication
                     user
                 );
 
-                this._dbContext.UsersInfo.Update(user);
-                await this._dbContext.SaveChangesAsync();
+                db.UsersInfo.Update(user);
+                await db.SaveChangesAsync();
             }
             else
             {
@@ -492,12 +498,12 @@ namespace MainBotService.RabbitCommunication
                     user
                 );
 
-                await this._dbContext.UsersInfo.AddAsync(user);
-                await this._dbContext.SaveChangesAsync();
+                await db.UsersInfo.AddAsync(user);
+                await db.SaveChangesAsync();
             }
 
             // Send user update message to all subscribers
-            user = await this._dbContext.UsersInfo.FirstAsync(x => x.BotUserId == user.BotUserId);
+            user = await db.UsersInfo.FirstAsync(x => x.BotUserId == user.BotUserId);
             var updUserMessage = this._mapper.Map<MainBotUpdateUserInfo>(user);
             updUserMessage.SystemEventId = eventId;
             updUserMessage.OriginalBotUserId = findBotId;
@@ -522,9 +528,10 @@ namespace MainBotService.RabbitCommunication
             return this._rabbitService.PublishInformation(actionName, outgoingMessage, subscriberServiceType);
         }
 
-        public Task<List<DbeProject>> Projects()
+        public async Task<List<DbeProject>> Projects()
         {
-            return this._dbContext.Projects.ToListAsync();
+            await using var db = this._dbContextFactory.CreateDbContext();
+            return await db.Projects.AsNoTracking().ToListAsync();
         }
         
         public async Task<(string, List<BugTrackerIssue>)> GetBugTrackerIssues(string projectSysName, string? version)
@@ -546,5 +553,9 @@ namespace MainBotService.RabbitCommunication
             return (responseMessage.IssueHttpFullPrefix, responseMessage.Issues.ToList());
         }
 
+        private BotServiceDbContext CreateDbContext()
+        {
+            return this._dbContextFactory.CreateDbContext();
+        }
     }
 }

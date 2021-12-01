@@ -39,7 +39,7 @@ namespace TelegramService.Telegram
     public class TelegramWrap : ITelegramWrap
     {
         private readonly ILogger _logger;
-        private readonly TgServiceDbContext _dbContext;
+        private readonly IDbContextFactory<TgServiceDbContext> _dbContextFactory;
         private readonly ITelegramBotClient _telegramBot;
         private readonly IRabbitService _rabbitService;
         private readonly IGlobalEventIdGenerator _globalEventIdGenerator;
@@ -52,10 +52,10 @@ namespace TelegramService.Telegram
             ITelegramBotClient telegramBot, 
             IRabbitService rabbitService,
             IGlobalEventIdGenerator globalEventIdGenerator,
-            TgServiceDbContext dbContext)
+            IDbContextFactory<TgServiceDbContext> dbContextFactory)
         {
             this._logger = logger;
-            this._dbContext = dbContext;
+            this._dbContextFactory = dbContextFactory;
             this._telegramBot = telegramBot;
             this._rabbitService = rabbitService;
             this._globalEventIdGenerator = globalEventIdGenerator;
@@ -146,13 +146,14 @@ namespace TelegramService.Telegram
         private async ValueTask<UserCache> UpdateDbUser(DbeUserInfo currUsrInfo, string eventId)
         {
             using var lc = await this._lock.Lock(new TimeSpan(0, 1, 0));
+            await using var db = this._dbContextFactory.CreateDbContext();
 
-            var usrInfo = await this._dbContext.UsersInfo.FirstOrDefaultAsync(x => x.TelegramUserId == currUsrInfo.TelegramUserId);
+            var usrInfo = await db.UsersInfo.FirstOrDefaultAsync(x => x.TelegramUserId == currUsrInfo.TelegramUserId);
             if (usrInfo == null)
             {
                 // Add new telegram user
-                await this._dbContext.UsersInfo.AddAsync(currUsrInfo);
-                await this._dbContext.SaveChangesAsync();
+                await db.UsersInfo.AddAsync(currUsrInfo);
+                await db.SaveChangesAsync();
 
                 await this._rabbitService.PublishInformation(RabbitMessages.TelegramPublishNewUserFromTelegram,
                     new TelegramPublishNewUserFromTelegram
@@ -169,11 +170,11 @@ namespace TelegramService.Telegram
                     usrInfo.DefaultChatId = currUsrInfo.DefaultChatId ?? usrInfo.DefaultChatId;
                     usrInfo.WhoIsThis = currUsrInfo.WhoIsThis;
                     
-                    await this._dbContext.SaveChangesAsync();
+                    await db.SaveChangesAsync();
                 }
             }
 
-            usrInfo = await this._dbContext.UsersInfo.FirstAsync(x => x.TelegramUserId == currUsrInfo.TelegramUserId);
+            usrInfo = await db.UsersInfo.FirstAsync(x => x.TelegramUserId == currUsrInfo.TelegramUserId);
 
             var userCache = new UserCache(usrInfo.TelegramUserId, usrInfo.DefaultChatId, usrInfo.BotUserId);
             return this._usersCache.AddOrUpdate(usrInfo.TelegramUserId, userCache, (id, exst) => userCache);
@@ -239,7 +240,9 @@ namespace TelegramService.Telegram
                 return null;
             }
 
-            var usrInfo = await this._dbContext.UsersInfo.AsNoTracking().SingleOrDefaultAsync(x => x.BotUserId == userBotId);
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var usrInfo = await db.UsersInfo.AsNoTracking().SingleOrDefaultAsync(x => x.BotUserId == userBotId);
             if (usrInfo == null)
             {
                 this._logger

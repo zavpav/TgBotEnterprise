@@ -20,7 +20,7 @@ namespace TelegramService.RabbitCommunication
         private readonly INodeInfo _nodeInfo;
         private readonly ITelegramWrap _telegramWrap;
         private readonly IMapper _mapper;
-        private readonly TgServiceDbContext _dbContext;
+        private readonly IDbContextFactory<TgServiceDbContext> _dbContextFactory;
         private readonly IRabbitService _rabbitService;
 
         public RabbitProcessor(ILogger logger,
@@ -28,14 +28,14 @@ namespace TelegramService.RabbitCommunication
             IRabbitService rabbitService,
             ITelegramWrap telegramWrap,
             IMapper mapper,
-            TgServiceDbContext dbContext)
+            IDbContextFactory<TgServiceDbContext> dbContextFactory)
         {
             this._logger = logger;
             this._nodeInfo = nodeInfo;
             this._rabbitService = rabbitService;
             this._telegramWrap = telegramWrap;
             this._mapper = mapper;
-            this._dbContext = dbContext;
+            this._dbContextFactory = dbContextFactory;
         }
 
         public async Task<string> ProcessDirectUntypedMessage(IRabbitService rabbit,
@@ -102,21 +102,23 @@ namespace TelegramService.RabbitCommunication
 
         private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
         {
-            var usrInfo = await this._dbContext.UsersInfo
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var usrInfo = await db.UsersInfo
                 .FirstOrDefaultAsync(x => x.BotUserId == (message.OriginalBotUserId ?? message.BotUserId));
             if (usrInfo == null)
             {
                 this._logger.Information(message, "User doesn't exist {@newUserMessage}", message);
                 var usr = this._mapper.Map<DbeUserInfo>(message);
-                await this._dbContext.UsersInfo.AddAsync(usr);
-                await this._dbContext.SaveChangesAsync();
+                await db.UsersInfo.AddAsync(usr);
+                await db.SaveChangesAsync();
             }
             else
             {
                 this._logger.Information(message, "User exist {@oldUserInfo} {@newUserMessage}", usrInfo, message);
                 usrInfo = this._mapper.Map(message, usrInfo);
-                this._dbContext.UsersInfo.Update(usrInfo);
-                await this._dbContext.SaveChangesAsync();
+                db.UsersInfo.Update(usrInfo);
+                await db.SaveChangesAsync();
             }
 
             this._telegramWrap.ClearUserCache();

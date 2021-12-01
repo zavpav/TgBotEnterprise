@@ -19,14 +19,14 @@ namespace JenkinsService.Jenkins
     public class JenkinsCommunication
     {
         private readonly ILogger _logger;
-        private readonly JenkinsDbContext _dbContext;
+        private readonly IDbContextFactory<JenkinsDbContext> _dbContextFactory;
 
         private HttpExtension.AuthInformation? _credential;
 
-        public JenkinsCommunication(ILogger logger, JenkinsDbContext dbContext)
+        public JenkinsCommunication(ILogger logger, IDbContextFactory<JenkinsDbContext> dbContextFactory)
         {
             this._logger = logger;
-            this._dbContext = dbContext;
+            this._dbContextFactory = dbContextFactory;
         }
 
         /// <summary> Get full address for "build" </summary>
@@ -66,7 +66,10 @@ namespace JenkinsService.Jenkins
         /// <param name="isFullSettings">if true - fill full job list. if project settings doesn't exist - create stub for it and fill with default values</param>
         public async Task<DbeProjectSettings?> GetProjectSettings(string projectSysName, bool isFullSettings)
         {
-            var prj = await this._dbContext.ProjectSettings
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var prj = await db.ProjectSettings
+                .AsNoTracking()
                 .Include(x => x.JobInformations)
                 .SingleOrDefaultAsync(x => x.ProjectSysName == projectSysName);
             
@@ -92,8 +95,9 @@ namespace JenkinsService.Jenkins
         /// <summary> Save project settings  </summary>
         public async Task SaveProjectSettings(DbeProjectSettings projectSettings)
         {
-            this._dbContext.ProjectSettings.Update(projectSettings);
-            await this._dbContext.SaveChangesAsync();
+            await using var db = this._dbContextFactory.CreateDbContext();
+            db.ProjectSettings.Update(projectSettings);
+            await db.SaveChangesAsync();
         }
 
 
@@ -148,6 +152,7 @@ namespace JenkinsService.Jenkins
 
         public async Task<List<DtoJobChanged>> UpdateDb()
         {
+            await using var db = this._dbContextFactory.CreateDbContext();
             try
             {
                 var lastBuilds = await this.GetLastBuildFromAllJob();
@@ -156,7 +161,7 @@ namespace JenkinsService.Jenkins
 
                 foreach (var build in lastBuilds)
                 {
-                    var savedBuild = await this._dbContext.JenkinsJobs
+                    var savedBuild = await db.JenkinsJobs
                         .Include(x => x.ChangeInfos)
                         .FirstOrDefaultAsync(x => 
                             x.BuildNumber == build.BuildNumber
@@ -178,7 +183,7 @@ namespace JenkinsService.Jenkins
 
                         jobChanges.Add(jc);
 
-                        this._dbContext.JenkinsJobs.Add(build);
+                        db.JenkinsJobs.Add(build);
                         continue;
                     }
 
@@ -196,7 +201,7 @@ namespace JenkinsService.Jenkins
 
                         var jc = new DtoJobChanged
                         {
-                            OldBuildInfo = await this._dbContext.JenkinsJobs.AsNoTracking()
+                            OldBuildInfo = await db.JenkinsJobs.AsNoTracking()
                                 .FirstAsync(x => x.BuildNumber == build.BuildNumber),
                             NewBuildInfo = build,
                             BuildUri = await this.GetUriForBuild(build.JenkinsJobName, build.BuildNumber),
@@ -239,7 +244,7 @@ namespace JenkinsService.Jenkins
                     }
                 }
 
-                await this._dbContext.SaveChangesAsync();
+                await db.SaveChangesAsync();
 
                 // Return information only for tracking jobs
                 //jobChanges.RemoveAll(x => x.NewBuildInfo?.ProjectSysName != null);
@@ -268,10 +273,11 @@ namespace JenkinsService.Jenkins
         }
 
         /// <summary> Get all disclosed project settings for easy of work </summary>
-        private Task<List<FlatProjectSettings>> GetFlatAllProjectSettings()
+        private async Task<List<FlatProjectSettings>> GetFlatAllProjectSettings()
         {
-            return this
-                ._dbContext.ProjectSettings.AsNoTracking()
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            return await db.ProjectSettings.AsNoTracking()
                 .Include(x => x.JobInformations)
                 .SelectMany(p =>
                     p.JobInformations.Select(ji =>
@@ -290,7 +296,10 @@ namespace JenkinsService.Jenkins
         /// <summary> Get project prefixes are used in git comments (as we can use) </summary>
         private async Task<List<(string projectPrefix, string projectSysName)>> GetProjectPrefixes()
         {
-            var allProjectPrefixes = await this._dbContext.ProjectSettings
+            await using var db = this._dbContextFactory.CreateDbContext();
+            
+            var allProjectPrefixes = await db.ProjectSettings
+                .AsNoTracking()
                 .Where(x => x.GitProjectPrefixes != null && x.GitProjectPrefixes != "")
                 .Select(x => new {x.ProjectSysName, x.GitProjectPrefixes})
                 .ToListAsync();
@@ -310,7 +319,9 @@ namespace JenkinsService.Jenkins
         /// <summary> Get all filled builds </summary>
         private async Task<List<DbeJenkinsJob>> GetLastBuildFromAllJob()
         {
-            var isFirstLoad = await this._dbContext.JenkinsJobs.AnyAsync();
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var isFirstLoad = await db.JenkinsJobs.AnyAsync();
             var lastBuilds = await this.GetLastClearBuildFromJenkins(isFirstLoad);
             var projectSettings = await this.GetFlatAllProjectSettings();
             var gitPrefixes = await GetProjectPrefixes();
@@ -459,7 +470,9 @@ namespace JenkinsService.Jenkins
         /// <summary> preAlpha for method of identify project for gitcommits </summary>
         public async Task UpdateGitCommentInfo()
         {
-            var allComments = await this._dbContext.Set<DbeJenkinsJob.ChangeInfo>().ToListAsync();
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var allComments = await db.Set<DbeJenkinsJob.ChangeInfo>().ToListAsync();
             var gitPrefixes = await this.GetProjectPrefixes();
             var reGitComment = new Regex(@"^(?<prj>\S+)\s+#(?<num>\d+)\s+(?<cmmnt>.*)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -484,7 +497,7 @@ namespace JenkinsService.Jenkins
                 }
             }
 
-            await this._dbContext.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
     }
 }

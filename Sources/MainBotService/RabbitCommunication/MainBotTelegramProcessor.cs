@@ -37,7 +37,9 @@ namespace MainBotService.RabbitCommunication
 
             public async Task<List<TelegramOutgoingMessage>> ProcessIncomeMessage(TelegramIncomeMessage incomeMessage)
             {
-                var user = await this._owner._dbContext.UsersInfo.FirstAsync(x => x.BotUserId == incomeMessage.BotUserId);
+                await using var db = this._owner.CreateDbContext();
+
+                var user = await db.UsersInfo.AsNoTracking().FirstAsync(x => x.BotUserId == incomeMessage.BotUserId);
                 
                 // "Inactive user"
                 if (!user.IsActive)
@@ -116,7 +118,8 @@ namespace MainBotService.RabbitCommunication
             /// <summary> Checking user is validated </summary>
             public async Task<bool> CheckUser(TelegramIncomeMessage incomeMessage)
             {
-                var user = await this._owner._dbContext.UsersInfo.FirstAsync(x => x.BotUserId == incomeMessage.BotUserId);
+                await using var db = this._owner.CreateDbContext();
+                var user = await db.UsersInfo.AsNoTracking().FirstAsync(x => x.BotUserId == incomeMessage.BotUserId);
 
                 // "Inactive user"
                 if (!user.IsActive)

@@ -19,13 +19,13 @@ namespace RedmineService.Redmine
     public class RedmineCommunication
     {
         private readonly ILogger _logger;
-        private readonly RedmineDbContext _dbContext;
+        private readonly IDbContextFactory<RedmineDbContext> _dbContextFactory;
         private HttpExtension.AuthInformation? _credential;
 
-        public RedmineCommunication(ILogger logger, RedmineDbContext dbContext)
+        public RedmineCommunication(ILogger logger, IDbContextFactory<RedmineDbContext> dbContextFactory)
         {
             this._logger = logger;
-            this._dbContext = dbContext;
+            this._dbContextFactory = dbContextFactory;
         }
 
 
@@ -99,7 +99,10 @@ namespace RedmineService.Redmine
         /// <param name="isFullSettings">if true - fill full job list. if project settings doesn't exist - create stub for it and fill with default values</param>
         public async Task<DbeProjectSettings?> GetProjectSettings(string projectSysName, bool isFullSettings)
         {
-            var prj = await this._dbContext.ProjectSettings.SingleOrDefaultAsync(x => x.ProjectSysName == projectSysName);
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var prj = await db.ProjectSettings.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.ProjectSysName == projectSysName);
             
             if (prj == null && isFullSettings)
                 prj = new DbeProjectSettings(projectSysName);
@@ -110,8 +113,9 @@ namespace RedmineService.Redmine
         /// <summary> Save project settings  </summary>
         public async Task SaveProjectSettings(DbeProjectSettings projectSettings)
         {
-            this._dbContext.ProjectSettings.Update(projectSettings);
-            await this._dbContext.SaveChangesAsync();
+            await using var db = this._dbContextFactory.CreateDbContext();
+            db.ProjectSettings.Update(projectSettings);
+            await db.SaveChangesAsync();
         }
 
 
@@ -149,7 +153,9 @@ namespace RedmineService.Redmine
         {
             await Task.Yield();
 
-            var issuesQuery = this._dbContext.Issues.AsQueryable();
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var issuesQuery = db.Issues.AsNoTracking().AsQueryable();
             if (issuesNums != null)
             {
                 if (issuesNums.Length != 1)
@@ -172,12 +178,14 @@ namespace RedmineService.Redmine
         /// <summary> Update database with issues </summary>
         public async Task<List<DtoIssueChanged>> UpdateIssuesDb()
         {
+            await using var db = this._dbContextFactory.CreateDbContext();
+
             var issuesChanged = new List<DtoIssueChanged>();
 
             var updatedIssues = await this.GetUpdatedIssues();
             foreach (var issue in updatedIssues)
             {
-                var savedIssue = await this._dbContext.Issues
+                var savedIssue = await db.Issues
                     .AsNoTracking()
                     .SingleOrDefaultAsync(x => x.Num == issue.Num);
 
@@ -212,13 +220,13 @@ namespace RedmineService.Redmine
                 try
                 {
                     if (savedIssue == null)
-                        this._dbContext.Issues.Add(issue); // add new issue
+                        db.Issues.Add(issue); // add new issue
                     else
                     {
-                        savedIssue = await this._dbContext.Issues
+                        savedIssue = await db.Issues
                             .SingleOrDefaultAsync(x => x.Num == issue.Num); // find again with tracking info
                         issue.Id = savedIssue.Id;
-                        this._dbContext.Entry(savedIssue).CurrentValues.SetValues(issue);// update information in dbContext
+                        db.Entry(savedIssue).CurrentValues.SetValues(issue);// update information in dbContext
                     }
                 }
                 catch (Exception e)
@@ -232,8 +240,8 @@ namespace RedmineService.Redmine
 
             try
             {
-                if (this._dbContext.ChangeTracker.HasChanges())
-                    await this._dbContext.SaveChangesAsync();
+                if (db.ChangeTracker.HasChanges())
+                    await db.SaveChangesAsync();
             }
             catch (Exception e)
             {
@@ -293,7 +301,9 @@ namespace RedmineService.Redmine
         /// <remarks>Has a little error and always return last issue (read comments iGetIssuesByDateDirect)</remarks>
         private async Task<List<DbeIssue>> GetUpdatedIssues()
         {
-            var lastUpdateOn = await this._dbContext.Issues.AsNoTracking().MaxAsync(x => (DateTime?)x.UpdateOn);
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var lastUpdateOn = await db.Issues.AsNoTracking().MaxAsync(x => (DateTime?)x.UpdateOn);
             var allChangedIssues = new List<DbeIssue>();
             if (lastUpdateOn == null)
             {
@@ -322,8 +332,8 @@ namespace RedmineService.Redmine
             }
 
             // Restore bot fields
-            var projects = await this._dbContext.ProjectSettings.ToListAsync();
-            var users = await this._dbContext.UsersInfo.Where(x => !string.IsNullOrEmpty(x.RedmineName)).ToListAsync();
+            var projects = await db.ProjectSettings.ToListAsync();
+            var users = await db.UsersInfo.Where(x => !string.IsNullOrEmpty(x.RedmineName)).ToListAsync();
             foreach (var issue in allChangedIssues)
             {
                 //IssueStatus
@@ -469,279 +479,279 @@ namespace RedmineService.Redmine
 
         #region Old functions. It's a pity to delete.
 
-        /// <summary> Get user id by botId </summary>
-        /// <param name="userBotId">Bot user id</param>
-        /// <returns>User id in redmine</returns>
-        private async Task<int?> GetRedmineUserId(string userBotId)
-        {
-            var userInfo = await this._dbContext.UsersInfo.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.BotUserId == userBotId);
-            if (userInfo == null)
-            {
-                this._logger.Error("Find user info error by userBotId= ({userBotId})", userBotId);
-                return null;
-            }
-            if (userInfo.RedmineUserId != null)
-                return userInfo.RedmineUserId;
+        ///// <summary> Get user id by botId </summary>
+        ///// <param name="userBotId">Bot user id</param>
+        ///// <returns>User id in redmine</returns>
+        //private async Task<int?> GetRedmineUserId(string userBotId)
+        //{
+        //    var userInfo = await this._dbContext.UsersInfo.AsNoTracking()
+        //        .FirstOrDefaultAsync(x => x.BotUserId == userBotId);
+        //    if (userInfo == null)
+        //    {
+        //        this._logger.Error("Find user info error by userBotId= ({userBotId})", userBotId);
+        //        return null;
+        //    }
+        //    if (userInfo.RedmineUserId != null)
+        //        return userInfo.RedmineUserId;
 
-            var redmineNameLower = userInfo.RedmineName?.ToLower();
+        //    var redmineNameLower = userInfo.RedmineName?.ToLower();
 
-            // don't want to think :) get all users from redmine and try to find id. it's executed very seldom
-            string? strId = null;
-            var xAllUsers = (await this.ExecuteRequest("users.xml")).Element("users");
+        //    // don't want to think :) get all users from redmine and try to find id. it's executed very seldom
+        //    string? strId = null;
+        //    var xAllUsers = (await this.ExecuteRequest("users.xml")).Element("users");
 
-            if (xAllUsers == null)
-            {
-                this._logger.Error("All users not found");
-                return null;
-            }
+        //    if (xAllUsers == null)
+        //    {
+        //        this._logger.Error("All users not found");
+        //        return null;
+        //    }
 
-            foreach (var xUser in xAllUsers.Elements("user"))
-            {
-                var userLogin = xUser.Element("login")?.Value.ToLower();
-                if (userLogin == redmineNameLower)
-                {
-                    strId = xUser.Element("id")?.Value;
-                    if (strId == null)
-                    {
-                        this._logger.Error("Id not found in xml-user by login {xUser}", xUser);
-                        return null;
-                    }
+        //    foreach (var xUser in xAllUsers.Elements("user"))
+        //    {
+        //        var userLogin = xUser.Element("login")?.Value.ToLower();
+        //        if (userLogin == redmineNameLower)
+        //        {
+        //            strId = xUser.Element("id")?.Value;
+        //            if (strId == null)
+        //            {
+        //                this._logger.Error("Id not found in xml-user by login {xUser}", xUser);
+        //                return null;
+        //            }
 
-                    break;
-                }
+        //            break;
+        //        }
 
-                var userName = (xUser.Element("firstname")?.Value + " " +
-                                xUser.Element("lastname")?.Value).Trim().ToLower();
-                if (userName == redmineNameLower)
-                {
-                    strId = xUser.Element("id")?.Value;
-                    if (strId == null)
-                    {
-                        this._logger.Error("Id not found in xml-user by name 1 {xUser}", xUser);
-                        return null;
-                    }
+        //        var userName = (xUser.Element("firstname")?.Value + " " +
+        //                        xUser.Element("lastname")?.Value).Trim().ToLower();
+        //        if (userName == redmineNameLower)
+        //        {
+        //            strId = xUser.Element("id")?.Value;
+        //            if (strId == null)
+        //            {
+        //                this._logger.Error("Id not found in xml-user by name 1 {xUser}", xUser);
+        //                return null;
+        //            }
 
-                    break;
-                }
+        //            break;
+        //        }
 
-                userName = (xUser.Element("lastname")?.Value + " " +
-                            xUser.Element("firstname")?.Value).Trim().ToLower();
-                if (userName == redmineNameLower)
-                {
-                    strId = xUser.Element("id")?.Value;
-                    if (strId == null)
-                    {
-                        this._logger.Error("Id not found in xml-user by name 2 {xUser}", xUser);
-                        return null;
-                    }
+        //        userName = (xUser.Element("lastname")?.Value + " " +
+        //                    xUser.Element("firstname")?.Value).Trim().ToLower();
+        //        if (userName == redmineNameLower)
+        //        {
+        //            strId = xUser.Element("id")?.Value;
+        //            if (strId == null)
+        //            {
+        //                this._logger.Error("Id not found in xml-user by name 2 {xUser}", xUser);
+        //                return null;
+        //            }
 
-                    break;
-                }
-            }
+        //            break;
+        //        }
+        //    }
 
-            if (strId == null)
-            {
-                this._logger.Error("User id not found");
-                return null;
-            }
+        //    if (strId == null)
+        //    {
+        //        this._logger.Error("User id not found");
+        //        return null;
+        //    }
 
-            if (!int.TryParse(strId, out int id))
-            {
-                this._logger.Error("Error user id parse '{id}'", strId);
-                return null;
-            }
+        //    if (!int.TryParse(strId, out int id))
+        //    {
+        //        this._logger.Error("Error user id parse '{id}'", strId);
+        //        return null;
+        //    }
 
-            userInfo = await this._dbContext.UsersInfo
-                .FirstOrDefaultAsync(x => x.Id == userInfo.Id);
+        //    userInfo = await this._dbContext.UsersInfo
+        //        .FirstOrDefaultAsync(x => x.Id == userInfo.Id);
 
-            userInfo.RedmineUserId = id;
+        //    userInfo.RedmineUserId = id;
 
-            await this._dbContext.SaveChangesAsync();
+        //    await this._dbContext.SaveChangesAsync();
 
-            return id;
+        //    return id;
 
-        }
+        //}
 
-        /// <summary> Get project id by project name </summary>
-        /// <param name="projectSysName">Project name in bot system</param>
-        /// <returns>Project id in redmine</returns>
-        private async Task<int?> GetProjectId(string projectSysName)
-        {
-            var projectSettings = await this._dbContext.ProjectSettings.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.ProjectSysName == projectSysName);
-            if (projectSettings == null)
-            {
-                this._logger.Error("Find project info error by projectSysName = ({projectSysName})", projectSysName);
-                return null;
-            }
+        ///// <summary> Get project id by project name </summary>
+        ///// <param name="projectSysName">Project name in bot system</param>
+        ///// <returns>Project id in redmine</returns>
+        //private async Task<int?> GetProjectId(string projectSysName)
+        //{
+        //    var projectSettings = await this._dbContext.ProjectSettings.AsNoTracking()
+        //        .FirstOrDefaultAsync(x => x.ProjectSysName == projectSysName);
+        //    if (projectSettings == null)
+        //    {
+        //        this._logger.Error("Find project info error by projectSysName = ({projectSysName})", projectSysName);
+        //        return null;
+        //    }
 
-            if (projectSettings.RedmineProjectId != null)
-                return projectSettings.RedmineProjectId;
+        //    if (projectSettings.RedmineProjectId != null)
+        //        return projectSettings.RedmineProjectId;
 
-            if (projectSettings.RedmineProjectName == null)
-            {
-                this._logger.Error("Undefined project for find {projectSysName}", projectSysName);
-                return null;
-            }
+        //    if (projectSettings.RedmineProjectName == null)
+        //    {
+        //        this._logger.Error("Undefined project for find {projectSysName}", projectSysName);
+        //        return null;
+        //    }
 
-            // don't want to think :) get all projects from redmine and try to find id. it's executed very seldom
-            string? strId = null;
+        //    // don't want to think :) get all projects from redmine and try to find id. it's executed very seldom
+        //    string? strId = null;
 
-            var xAllProjects = (await this.ExecuteRequest("projects.xml")).Element("projects");
-            if (xAllProjects == null)
-            {
-                this._logger.Error("All projects not found");
-                return null;
-            }
+        //    var xAllProjects = (await this.ExecuteRequest("projects.xml")).Element("projects");
+        //    if (xAllProjects == null)
+        //    {
+        //        this._logger.Error("All projects not found");
+        //        return null;
+        //    }
 
-            foreach (var xProj in xAllProjects.Elements("project"))
-            {
-                var projectLowerName = xProj.Element("name")?.Value.ToLower();
-                if (projectLowerName == projectSettings.RedmineProjectName.ToLower())
-                {
-                    strId = xProj.Element("id")?.Value;
-                    if (strId == null)
-                    {
-                        this._logger.Error("Id not found in xml-project {xProj}", xProj);
-                        return null;
-                    }
+        //    foreach (var xProj in xAllProjects.Elements("project"))
+        //    {
+        //        var projectLowerName = xProj.Element("name")?.Value.ToLower();
+        //        if (projectLowerName == projectSettings.RedmineProjectName.ToLower())
+        //        {
+        //            strId = xProj.Element("id")?.Value;
+        //            if (strId == null)
+        //            {
+        //                this._logger.Error("Id not found in xml-project {xProj}", xProj);
+        //                return null;
+        //            }
 
-                    break;
-                }
-            }
+        //            break;
+        //        }
+        //    }
 
-            if (strId == null)
-            {
-                this._logger.Error("Project id not found");
-                return null;
-            }
+        //    if (strId == null)
+        //    {
+        //        this._logger.Error("Project id not found");
+        //        return null;
+        //    }
 
-            if (!int.TryParse(strId, out int id))
-            {
-                this._logger.Error("Error project id parse '{id}'", strId);
-                return null;
-            }
+        //    if (!int.TryParse(strId, out int id))
+        //    {
+        //        this._logger.Error("Error project id parse '{id}'", strId);
+        //        return null;
+        //    }
 
-            projectSettings = await this._dbContext.ProjectSettings
-                .FirstOrDefaultAsync(x => x.Id == projectSettings.Id);
-            projectSettings.RedmineProjectId = id;
+        //    projectSettings = await this._dbContext.ProjectSettings
+        //        .FirstOrDefaultAsync(x => x.Id == projectSettings.Id);
+        //    projectSettings.RedmineProjectId = id;
 
-            await this._dbContext.SaveChangesAsync();
+        //    await this._dbContext.SaveChangesAsync();
 
-            return id;
-        }
+        //    return id;
+        //}
 
-        /// <summary> Get version id by version name </summary>
-        /// <param name="projectSysName">Project name in bot system</param>
-        /// <param name="versionText">Text name of version</param>
-        private async Task<int?> GetVersionId(string projectSysName, string versionText)
-        {
-            //maybe need caching
-            this._logger.Warning("Very long getting version id");
+        ///// <summary> Get version id by version name </summary>
+        ///// <param name="projectSysName">Project name in bot system</param>
+        ///// <param name="versionText">Text name of version</param>
+        //private async Task<int?> GetVersionId(string projectSysName, string versionText)
+        //{
+        //    //maybe need caching
+        //    this._logger.Warning("Very long getting version id");
 
-            var projectSettings = await this._dbContext.ProjectSettings.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.ProjectSysName == projectSysName);
-            if (projectSettings?.RedmineProjectName == null)
-            {
-                this._logger.Error("Find project info error by projectSysName = ({projectSysName})", projectSysName);
-                return null;
-            }
+        //    var projectSettings = await this._dbContext.ProjectSettings.AsNoTracking()
+        //        .FirstOrDefaultAsync(x => x.ProjectSysName == projectSysName);
+        //    if (projectSettings?.RedmineProjectName == null)
+        //    {
+        //        this._logger.Error("Find project info error by projectSysName = ({projectSysName})", projectSysName);
+        //        return null;
+        //    }
 
-            // don't want to think :) again (see upper)
-            string? strId = null;
-            var xVersions = (await this.ExecuteRequest($"/projects/{projectSettings.RedmineProjectName}/versions.xml")).Element("versions");
-
-
-            if (xVersions == null)
-            {
-                this._logger.Error("Versions for project {project} not found", projectSettings.RedmineProjectName);
-                return null;
-            }
-
-            foreach (var xVer in xVersions.Elements("version"))
-            {
-                var versionLowerName = xVer.Element("name")?.Value.ToLower();
-                if (versionLowerName == versionText.ToLower())
-                {
-                    strId = xVer.Element("id")?.Value;
-                    if (strId == null)
-                    {
-                        this._logger.Error("Id not found in xml-version {xVer}", xVer);
-                        return null;
-                    }
-
-                    break;
-                }
-            }
-
-            if (strId == null)
-            {
-                this._logger.Error("Version id not found");
-                return null;
-            }
-
-            if (!int.TryParse(strId, out int id))
-            {
-                this._logger.Error("Error version id parse '{id}'", strId);
-                return null;
-            }
-
-            // need caching value?
-            return id;
-        }
-
-        /// <summary> Get status id by name </summary>
-        /// <param name="statusName">Status name</param>
-        private async Task<int?> GetStatusId(string statusName)
-        {
-            //http://srm.aksiok.ru/issue_statuses.xml
-
-            //maybe need caching
-            this._logger.Warning("Very long getting status id");
-
-            // don't want to think :) again (see upper)
-            string? strId = null;
-            var xStatuses = (await this.ExecuteRequest("issue_statuses.xml")).Element("issue_statuses");
+        //    // don't want to think :) again (see upper)
+        //    string? strId = null;
+        //    var xVersions = (await this.ExecuteRequest($"/projects/{projectSettings.RedmineProjectName}/versions.xml")).Element("versions");
 
 
-            if (xStatuses == null)
-            {
-                this._logger.Error("Statuses not found");
-                return null;
-            }
+        //    if (xVersions == null)
+        //    {
+        //        this._logger.Error("Versions for project {project} not found", projectSettings.RedmineProjectName);
+        //        return null;
+        //    }
 
-            foreach (var xStatus in xStatuses.Elements("issue_status"))
-            {
-                var statusLowerName = xStatus.Element("name")?.Value.ToLower();
-                if (statusLowerName == statusName.ToLower())
-                {
-                    strId = xStatus.Element("id")?.Value;
-                    if (strId == null)
-                    {
-                        this._logger.Error("Id not found in xml-status {xStatus}", xStatus);
-                        return null;
-                    }
+        //    foreach (var xVer in xVersions.Elements("version"))
+        //    {
+        //        var versionLowerName = xVer.Element("name")?.Value.ToLower();
+        //        if (versionLowerName == versionText.ToLower())
+        //        {
+        //            strId = xVer.Element("id")?.Value;
+        //            if (strId == null)
+        //            {
+        //                this._logger.Error("Id not found in xml-version {xVer}", xVer);
+        //                return null;
+        //            }
 
-                    break;
-                }
-            }
+        //            break;
+        //        }
+        //    }
 
-            if (strId == null)
-            {
-                this._logger.Error("Status id not found");
-                return null;
-            }
+        //    if (strId == null)
+        //    {
+        //        this._logger.Error("Version id not found");
+        //        return null;
+        //    }
 
-            if (!int.TryParse(strId, out int id))
-            {
-                this._logger.Error("Error status id parse '{id}'", strId);
-                return null;
-            }
+        //    if (!int.TryParse(strId, out int id))
+        //    {
+        //        this._logger.Error("Error version id parse '{id}'", strId);
+        //        return null;
+        //    }
 
-            // need caching value?
-            return id;
-        }
+        //    // need caching value?
+        //    return id;
+        //}
+
+        ///// <summary> Get status id by name </summary>
+        ///// <param name="statusName">Status name</param>
+        //private async Task<int?> GetStatusId(string statusName)
+        //{
+        //    //http://srm.aksiok.ru/issue_statuses.xml
+
+        //    //maybe need caching
+        //    this._logger.Warning("Very long getting status id");
+
+        //    // don't want to think :) again (see upper)
+        //    string? strId = null;
+        //    var xStatuses = (await this.ExecuteRequest("issue_statuses.xml")).Element("issue_statuses");
+
+
+        //    if (xStatuses == null)
+        //    {
+        //        this._logger.Error("Statuses not found");
+        //        return null;
+        //    }
+
+        //    foreach (var xStatus in xStatuses.Elements("issue_status"))
+        //    {
+        //        var statusLowerName = xStatus.Element("name")?.Value.ToLower();
+        //        if (statusLowerName == statusName.ToLower())
+        //        {
+        //            strId = xStatus.Element("id")?.Value;
+        //            if (strId == null)
+        //            {
+        //                this._logger.Error("Id not found in xml-status {xStatus}", xStatus);
+        //                return null;
+        //            }
+
+        //            break;
+        //        }
+        //    }
+
+        //    if (strId == null)
+        //    {
+        //        this._logger.Error("Status id not found");
+        //        return null;
+        //    }
+
+        //    if (!int.TryParse(strId, out int id))
+        //    {
+        //        this._logger.Error("Error status id parse '{id}'", strId);
+        //        return null;
+        //    }
+
+        //    // need caching value?
+        //    return id;
+        //}
         #endregion
     }
 }

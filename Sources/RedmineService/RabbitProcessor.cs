@@ -26,7 +26,7 @@ namespace RedmineService
         private readonly ILogger _logger;
         private readonly IMapper _mapper;
         private readonly IRabbitService _rabbitService;
-        private readonly RedmineDbContext _dbContext;
+        private readonly IDbContextFactory<RedmineDbContext> _dbContextFactory;
         private readonly IGlobalEventIdGenerator _eventIdGenerator;
 
         private readonly RedmineCommunication _redmineService;
@@ -35,17 +35,17 @@ namespace RedmineService
             ILogger logger,
             IRabbitService rabbitService,
             IMapper mapper,
-            RedmineDbContext dbContext, 
+            IDbContextFactory<RedmineDbContext> dbContextFactory, 
             IGlobalEventIdGenerator eventIdGenerator)
         {
             this._nodeInfo = nodeInfo;
             this._logger = logger;
             this._rabbitService = rabbitService;
             this._mapper = mapper;
-            this._dbContext = dbContext;
+            this._dbContextFactory = dbContextFactory;
             this._eventIdGenerator = eventIdGenerator;
 
-            this._redmineService = new RedmineCommunication(logger, dbContext);
+            this._redmineService = new RedmineCommunication(logger, dbContextFactory);
         }
 
         public void Subscribe()
@@ -77,21 +77,23 @@ namespace RedmineService
 
         private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)
         {
-            var usrInfo = await this._dbContext.UsersInfo
+            await using var db = this._dbContextFactory.CreateDbContext();
+
+            var usrInfo = await db.UsersInfo
                 .FirstOrDefaultAsync(x => x.BotUserId == (message.OriginalBotUserId ?? message.BotUserId));
             if (usrInfo == null)
             {
                 this._logger.Information(message, "User doesn't exist {@newUserMessage}", message);
                 var usr = this._mapper.Map<DbeUserInfo>(message);
-                await this._dbContext.UsersInfo.AddAsync(usr);
-                await this._dbContext.SaveChangesAsync();
+                await db.UsersInfo.AddAsync(usr);
+                await db.SaveChangesAsync();
             }
             else
             {
                 this._logger.Information(message, "User exist {@oldUserInfo} {@newUserMessage}", usrInfo, message);
                 usrInfo = this._mapper.Map(message, usrInfo);
-                this._dbContext.UsersInfo.Update(usrInfo);
-                await this._dbContext.SaveChangesAsync();
+                db.UsersInfo.Update(usrInfo);
+                await db.SaveChangesAsync();
             }
         }
 
