@@ -121,14 +121,14 @@ namespace MainBotService.RabbitCommunication
             // I don't want to get a lot information
             if (DateTime.Now - lastUpdate > new TimeSpan(0, 20, 0))
             {
-                var outgoingMessage = new TelegramOutgoingMessage(message.SystemEventId)
+                var outgoingMessage = new TelegramOutgoingMessage(message.SystemEventId, 
+                    $"Problem with service {message.ServicesType} {message.NodeName}\n\n" +
+                             "Description: " + message.Description + "\n\n" +
+                             "Exception type: " + message.ExceptionTypeName + "\n\n" +
+                             "ExceptionInfo:\n" + message.ExceptionString + "\n\n" +
+                             "StackTrace:\n" + message.ExceptionStackTrace)
                 {
                     BotUserId = this._adminId,
-                    Message = $"Problem with service {message.ServicesType} {message.NodeName}\n\n" +
-                              "Description: " + message.Description + "\n\n" +
-                              "Exception type: " + message.ExceptionTypeName + "\n\n" +
-                              "ExceptionInfo:\n" + message.ExceptionString + "\n\n" +
-                              "StackTrace:\n"+ message.ExceptionStackTrace
                 };
 
                 await this._rabbitService.PublishInformation(RabbitMessages.TelegramOutgoingMessage,
@@ -251,7 +251,7 @@ namespace MainBotService.RabbitCommunication
 
             var outgoingMessage = new TelegramOutgoingIssuesChangedMessage(this.GetNextEventId(), message.NewVersion.UserBotIdAssignOn)
             {
-                IssueHttpFullPrefix = message.IssueHttpFullPrefix,
+                IssueUrl = message.NewVersion.IssueUrl,
                 IssueNum = message.NewVersion.Num
             };
 
@@ -384,9 +384,8 @@ namespace MainBotService.RabbitCommunication
                 .Warning("Message unprocessed by conversations.");
 
             await this._rabbitService.PublishInformation(RabbitMessages.TelegramOutgoingMessage,
-                new TelegramOutgoingMessage(incomeMessage.SystemEventId)
+                new TelegramOutgoingMessage(incomeMessage.SystemEventId, "Not found action " + incomeMessage.MessageText)
                 {
-                    Message = "Not found action " + incomeMessage.MessageText,
                     ChatId = incomeMessage.ChatId
                 });
 
@@ -534,7 +533,7 @@ namespace MainBotService.RabbitCommunication
             return await db.Projects.AsNoTracking().ToListAsync();
         }
         
-        public async Task<(string, List<BugTrackerIssue>)> GetBugTrackerIssues(string projectSysName, string? version)
+        public async Task<List<BugTrackerIssue>> GetBugTrackerIssues(string projectSysName, string? version)
         {
             var eventId = this._eventIdGenerator.GetNextEventId();
 
@@ -550,7 +549,7 @@ namespace MainBotService.RabbitCommunication
                 requestMessage
             );
 
-            return (responseMessage.IssueHttpFullPrefix, responseMessage.Issues.ToList());
+            return responseMessage.Issues.ToList();
         }
 
         private BotServiceDbContext CreateDbContext()

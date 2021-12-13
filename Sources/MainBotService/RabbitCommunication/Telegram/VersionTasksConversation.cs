@@ -36,7 +36,7 @@ namespace MainBotService.RabbitCommunication.Telegram
                 if (string.IsNullOrEmpty(project.CurrentVersion))
                     continue;
 
-                var (httpPrefix, issues) = await this._mainBot.GetBugTrackerIssues(project.SysName, project.CurrentVersion);
+                var issues = await this._mainBot.GetBugTrackerIssues(project.SysName, project.CurrentVersion);
                 if (issues.Count == 0)
                 {
                     this._logger.Information("No issues found {ProjectSysName} {Version}", 
@@ -56,7 +56,6 @@ namespace MainBotService.RabbitCommunication.Telegram
                     {
                         ChatId = outgoingPreMessageInfo.ChatId,
                         Issues = issues.ToArray(),
-                        IssueHttpFullPrefix = httpPrefix
                     };
 
                     await this._mainBot.PublishMessage(RabbitMessages.TelegramOutgoingIssuesMessage, 

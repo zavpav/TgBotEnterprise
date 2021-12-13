@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using CommonInfrastructure;
 using MainBotService.Database;
@@ -18,7 +17,7 @@ namespace MainBotService.RabbitCommunication
         /// <param name="projectSysName">Project</param>
         /// <param name="version">Version</param>
         /// <returns>List of issues</returns>
-        Task<(string, List<BugTrackerIssue>)> GetBugTrackerIssues(string projectSysName, string? version);
+        Task<List<BugTrackerIssue>> GetBugTrackerIssues(string projectSysName, string? version);
 
         /// <summary> Get event Id </summary>
         string GetNextEventId();

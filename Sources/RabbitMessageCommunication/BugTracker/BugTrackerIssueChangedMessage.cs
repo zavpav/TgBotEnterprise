@@ -11,9 +11,6 @@
         /// <summary> Event Id - Unique id in all services </summary>
         public string SystemEventId { get; }
 
-        /// <summary> Http prefix of redmine for open issue in browser </summary>
-        public string IssueHttpFullPrefix { get; set; } = "";
-
         /// <summary> Old version of issue. null - for new Version of issue </summary>
         public BugTrackerIssue? OldVersion { get; set; }
 

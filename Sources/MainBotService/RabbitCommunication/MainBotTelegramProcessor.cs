@@ -47,9 +47,8 @@ namespace MainBotService.RabbitCommunication
                     if (incomeMessage.IsDirectMessage)
                         return new List<TelegramOutgoingMessage>
                         {
-                            new TelegramOutgoingMessage(incomeMessage.SystemEventId)
+                            new TelegramOutgoingMessage(incomeMessage.SystemEventId, "Who are you? " + incomeMessage.MessageText)
                             {
-                                Message = "Who are you? " + incomeMessage.MessageText,
                                 ChatId = incomeMessage.ChatId
                             }
                         };
@@ -93,9 +92,9 @@ namespace MainBotService.RabbitCommunication
 
                     return new List<TelegramOutgoingMessage>
                     {
-                        new TelegramOutgoingMessage(incomeMessage.SystemEventId)
+                        new TelegramOutgoingMessage(incomeMessage.SystemEventId,
+                            sb.ToString())
                         {
-                            Message = sb.ToString(),
                             ChatId = incomeMessage.ChatId
                         }
                     };
@@ -105,9 +104,9 @@ namespace MainBotService.RabbitCommunication
 
                 return new List<TelegramOutgoingMessage>
                 {
-                    new TelegramOutgoingMessage(incomeMessage.SystemEventId)
+                    new TelegramOutgoingMessage(incomeMessage.SystemEventId, 
+                        "Unknown command " + incomeMessage.MessageText)
                     {
-                        Message = "Unknown command " + incomeMessage.MessageText,
                         ChatId = incomeMessage.ChatId
                     }
                 };
@@ -126,9 +125,8 @@ namespace MainBotService.RabbitCommunication
                 {
                     if (incomeMessage.IsDirectMessage)
                     {
-                        var outgoingMessage = new TelegramOutgoingMessage(incomeMessage.SystemEventId)
+                        var outgoingMessage = new TelegramOutgoingMessage(incomeMessage.SystemEventId, "Who are you? " + incomeMessage.MessageText)
                         {
-                            Message = "Who are you? " + incomeMessage.MessageText,
                             ChatId = incomeMessage.ChatId
                         };
 

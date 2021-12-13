@@ -8,6 +8,7 @@ using RabbitMessageCommunication.BugTracker;
 using RabbitMessageCommunication.BuildService;
 using RabbitMqInfrastructure;
 using Serilog;
+using TelegramService.RabbitCommunication;
 
 namespace MainBotService.RabbitCommunication.Telegram
 {
@@ -57,14 +58,13 @@ namespace MainBotService.RabbitCommunication.Telegram
 
             if (responseMessage.BuildCommentsInfos == null)
             {
-                var outgoingMessage = new TelegramOutgoingMessage(this._mainBot.GetNextEventId())
+                var outgoingMessage = new TelegramOutgoingMessageHtml(this._mainBot.GetNextEventId(), "Ничего не найдно")
                 {
                     BotUserId = outgoingPreMessageInfo.BotUserId,
-                    ChatId = outgoingPreMessageInfo.ChatId,
-                    Message = "Ничего не найдно"
+                    ChatId = outgoingPreMessageInfo.ChatId
                 };
 
-                await this._mainBot.PublishMessage(RabbitMessages.TelegramOutgoingMessage,
+                await this._mainBot.PublishMessage(RabbitMessages.TelegramOutgoingMessageHtml,
                     outgoingMessage,
                     EnumInfrastructureServicesType.Messaging);
             }
@@ -87,34 +87,56 @@ namespace MainBotService.RabbitCommunication.Telegram
                         .Error("Some strange. Bug tracker return too many issues");
 
                 var bugTrackerIssue = responseMessageIssue.Issues?[0];
+                if (bugTrackerIssue == null)
+                {
+                    var outgoingMessageErr = new TelegramOutgoingMessageHtml(this._mainBot.GetNextEventId(), "Ошибка поиска информации по задаче №" + issueNum)
+                    {
+                        BotUserId = outgoingPreMessageInfo.BotUserId,
+                        ChatId = outgoingPreMessageInfo.ChatId,
+                    };
+
+                    await this._mainBot.PublishMessage(RabbitMessages.TelegramOutgoingMessageHtml,
+                        outgoingMessageErr,
+                        EnumInfrastructureServicesType.Messaging);
+
+                    return null;
+                }
+
 
                 var sb = new StringBuilder(100);
-                sb.Append("По задаче #");
+                sb.Append("По задаче <a href=\"");
+                sb.Append(bugTrackerIssue.IssueUrl);
+                sb.Append("\">#");
                 sb.Append(responseMessage.IssueNum);
-                sb.Append("\n");
-                sb.Append(bugTrackerIssue?.Subject ?? "<Информация по задаче не найдена>");
-                sb.Append("\n");
-                sb.Append("Статус: ");
-                sb.Append(bugTrackerIssue?.RedmineStatus ?? "<Не знаю>");
-                sb.Append("\n");
+                sb.Append("</a>\n");
+                sb.Append("<b>");
+                sb.Append(bugTrackerIssue.Subject.EscapeHtml());
+                sb.Append("</b>\n");
+                sb.Append("Статус: <i>");
+                sb.Append(bugTrackerIssue.RedmineStatus);
+                sb.Append("</i>\n");
 
 
                 foreach (var commentsByProject in responseMessage
                     .BuildCommentsInfos
-                    .GroupBy(x => x.ProjectSysName)
+                    .GroupBy(x => new {x.ProjectSysName, x.JenkinsJobName})
                     .OrderBy(x =>
                     {
-                        if (x.Key == bugTrackerIssue.ProjectSysName)
+                        if (x.Key.ProjectSysName == bugTrackerIssue.ProjectSysName)
                             return "1";
-                        if (string.IsNullOrEmpty(x.Key))
+                        if (string.IsNullOrEmpty(x.Key.ProjectSysName))
                             return "Z";
-                        return "9" + x.Key;
+                        return "9:" + x.Key.ProjectSysName + ":" + x.Key.JenkinsJobName;
                     })
+                    .ThenBy(x => x.Key.JenkinsJobName)
                 )
                 {
                     sb.Append("\n");
-                    sb.Append("Проект ");
-                    sb.Append(commentsByProject.Key);
+                    sb.Append("Проект: <b>");
+                    sb.Append(commentsByProject.Key.ProjectSysName);
+                    sb.Append(" - ");
+                    sb.Append(commentsByProject.Key.JenkinsJobName);
+                    sb.Append("</b>\n");
 
                     foreach (var commentsByBuild in commentsByProject.GroupBy(x => x.BuildNum)
                         .OrderByDescending(x =>
@@ -125,11 +147,9 @@ namespace MainBotService.RabbitCommunication.Telegram
                             return int.MinValue;
                         }))
                     {
-
-                        sb.Append("\n");
-                        sb.Append("Сборка #");
+                        sb.Append("Сборка <b>#");
                         sb.Append(commentsByBuild.Key);
-                        sb.Append("\n");
+                        sb.Append("</b>\n");
 
                         foreach (var cmm in commentsByBuild)
                         {
@@ -140,14 +160,13 @@ namespace MainBotService.RabbitCommunication.Telegram
                     }
                 }
 
-                var outgoingMessage = new TelegramOutgoingMessage(this._mainBot.GetNextEventId())
+                var outgoingMessage = new TelegramOutgoingMessageHtml(this._mainBot.GetNextEventId(), sb.ToString())
                 {
                     BotUserId = outgoingPreMessageInfo.BotUserId,
                     ChatId = outgoingPreMessageInfo.ChatId,
-                    Message = sb.ToString()
                 };
 
-                await this._mainBot.PublishMessage(RabbitMessages.TelegramOutgoingMessage,
+                await this._mainBot.PublishMessage(RabbitMessages.TelegramOutgoingMessageHtml,
                     outgoingMessage,
                     EnumInfrastructureServicesType.Messaging);
             }

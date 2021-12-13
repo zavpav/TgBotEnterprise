@@ -8,6 +8,9 @@ namespace RabbitMessageCommunication.BugTracker
         /// <summary> Issue num </summary>
         public string Num { get; set; } = "";
 
+        /// <summary> Url for open issue in browser </summary>
+        public string IssueUrl { get; set; } = "";
+
         /// <summary> Issue subject </summary>
         public string Subject { get; set; } = "";
 

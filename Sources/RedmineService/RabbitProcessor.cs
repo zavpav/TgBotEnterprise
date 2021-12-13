@@ -170,7 +170,6 @@ namespace RedmineService
         private async Task<BugTrackerTasksResponseMessage> ProcessBugTrackerRequestIssues(BugTrackerTasksRequestMessage requestMessage, IDictionary<string, string> rabbitMessageHeaders)
         {
             var responseMessage = new BugTrackerTasksResponseMessage(requestMessage.SystemEventId);
-            responseMessage.IssueHttpFullPrefix = await this._redmineService.GetHttpPrefixOfIssue();
 
             // force update issues
             var changedIssues = await this._redmineService.UpdateIssuesDb();
@@ -185,6 +184,12 @@ namespace RedmineService
                 requestMessage.FilterVersionText);
 
             responseMessage.Issues = this._mapper.Map<BugTrackerIssue[]>(foundIssues);
+
+            if (requestMessage.IssueNums != null)
+            {
+                var htmlPrefix = await this._redmineService.GetHttpPrefixOfIssue();
+                responseMessage.Issues.ForEach(x => x.IssueUrl = htmlPrefix + x.Num);
+            }
 
             if (sendUpdatedIssues != null)
                 await sendUpdatedIssues;
@@ -202,12 +207,19 @@ namespace RedmineService
                 try
                 {
                     var changedIssueMessage = new BugTrackerIssueChangedMessage(this._eventIdGenerator.GetNextEventId());
-                    changedIssueMessage.IssueHttpFullPrefix = await this._redmineService.GetHttpPrefixOfIssue();
+                    var urlPrefix = await this._redmineService.GetHttpPrefixOfIssue();
 
                     if (issueChanged.OldVersion != null)
+                    {
                         changedIssueMessage.OldVersion = this._mapper.Map<BugTrackerIssue>(issueChanged.OldVersion);
+                        changedIssueMessage.OldVersion.IssueUrl = urlPrefix + changedIssueMessage.OldVersion.Num;
+                    }
+
                     if (issueChanged.NewVersion != null)
+                    {
                         changedIssueMessage.NewVersion = this._mapper.Map<BugTrackerIssue>(issueChanged.NewVersion);
+                        changedIssueMessage.NewVersion.IssueUrl = urlPrefix + changedIssueMessage.NewVersion.Num;
+                    }
 
                     this._mapper.Map(issueChanged, changedIssueMessage);
 
