@@ -1,13 +1,11 @@
 ﻿namespace RabbitMessageCommunication
 {
-    public class TelegramOutgoingMessageHtml : IRabbitMessage
+    public class TelegramOutgoingMessage : IRabbitMessage
     {
-        public TelegramOutgoingMessageHtml(
-            string systemEventId,
-            string messageHtml)
+        public TelegramOutgoingMessage(string systemEventId, string message)
         {
             this.SystemEventId = systemEventId;
-            this.MessageHtml = messageHtml;
+            this.Message = message;
         }
 
         public string SystemEventId { get; set; }
@@ -21,7 +19,7 @@
         
         public int? MessageId { get; set; }
         
-        /// <summary> Html formatted message for telegram </summary>
-        public string MessageHtml { get; set; }
+        /// <summary> Plane message for telegram </summary>
+        public string Message { get; set; }
     }
 }

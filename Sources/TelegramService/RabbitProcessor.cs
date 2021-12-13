@@ -57,6 +57,11 @@ namespace TelegramService.RabbitCommunication
                 this.ProcessOutgoingMessage,
                 this._logger);
 
+            this._rabbitService.Subscribe<TelegramOutgoingMessageHtml>(EnumInfrastructureServicesType.Main,
+                RabbitMessages.TelegramOutgoingMessageHtml,
+                this.ProcessOutgoingMessageHtml,
+                this._logger);
+
             this._rabbitService.Subscribe<MainBotUpdateUserInfo>(EnumInfrastructureServicesType.Main,
                 RabbitMessages.MainBotPublishUpdateUser,
                 this.ProcessUpdateUserInformation,
@@ -98,6 +103,11 @@ namespace TelegramService.RabbitCommunication
         private Task ProcessOutgoingMessage(TelegramOutgoingMessage messageData, IDictionary<string, string> rabbitMessageHeaders)
         {
             return this._telegramWrap.SendMessage(messageData);
+        }
+
+        private Task ProcessOutgoingMessageHtml(TelegramOutgoingMessageHtml messageData, IDictionary<string, string> rabbitMessageHeaders)
+        {
+            return this._telegramWrap.SendMessageHtml(messageData);
         }
 
         private async Task ProcessUpdateUserInformation(MainBotUpdateUserInfo message, IDictionary<string, string> rabbitMessageHeaders)

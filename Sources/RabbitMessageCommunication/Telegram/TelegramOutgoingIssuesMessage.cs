@@ -19,9 +19,6 @@ namespace RabbitMessageCommunication
         /// <summary> Chat Id from telegram </summary>
         public long? ChatId { get; set; }
 
-        /// <summary> Http prefix of redmine for open issue in browser </summary>
-        public string IssueHttpFullPrefix { get; set; } = "";
-
         /// <summary> Found issues </summary>
         public BugTrackerIssue[] Issues { get; set; } = new BugTrackerIssue[0];
     }

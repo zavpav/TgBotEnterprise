@@ -21,7 +21,13 @@ namespace TelegramService.Telegram
     {
         Task Pull();
         Task Initialize();
+
+        /// <summary> Send plane (without formatting) text to telegram </summary>
         Task SendMessage(TelegramOutgoingMessage messageData);
+
+        /// <summary> Send formatted (with html formatting) text to telegram </summary>
+        Task SendMessageHtml(TelegramOutgoingMessageHtml messageData);
+
         void ClearUserCache();
 
         /// <summary> Send issues to user </summary>
@@ -287,7 +293,50 @@ namespace TelegramService.Telegram
 
             try
             {
-                var msg = await this._telegramBot.SendTextMessageAsync(chatId.Value, messageText, replyToMessageId: messageData.MessageId ?? 0);
+                var msg = await this._telegramBot.SendTextMessageAsync(chatId.Value, 
+                    messageText,
+                    replyToMessageId: messageData.MessageId ?? 0);
+            }
+            catch (Exception e)
+            {
+                this._logger
+                    .ForContext("outgingMessage", messageData, true)
+                    .Error(messageData, e, "Error sending message to user");
+            }
+            //msg.MessageId
+        }
+
+        public async Task SendMessageHtml(TelegramOutgoingMessageHtml messageData)
+        {
+            var chatId = messageData.ChatId;
+            if (chatId == null)
+                chatId = await this.DefineChatId(messageData.BotUserId);
+
+            if (chatId == null)
+            {
+                this._logger
+                    .ForContext("message", messageData, true)
+                    .Error("Error processing output message. ChatId not found.");
+                return;
+            }
+
+            this._logger
+                .ForContext("outgingMessage", messageData, true)
+                .Information(messageData, "Sending message to user");
+
+            var messageText = messageData.MessageHtml;
+            if (messageText.Length > 4000)
+            {
+                this._logger.Warning(messageData, "Message too long {len}", messageData.MessageHtml.Length);
+                messageText = messageText.Substring(0, 4000);
+            }
+
+            try
+            {
+                var msg = await this._telegramBot.SendTextMessageAsync(chatId.Value,
+                    messageText,
+                    parseMode: ParseMode.Html,
+                    replyToMessageId: messageData.MessageId ?? 0);
             }
             catch (Exception e)
             {
@@ -311,7 +360,7 @@ namespace TelegramService.Telegram
                 return;
             }
 
-            var htmlString = $"<b>{message.HeaderText.EscapeHtml()}</b>\n\n<a href=\"{message.IssueHttpFullPrefix}{message.IssueNum}\">#{message.IssueNum}</a>  {message.BodyText.EscapeHtml()}";
+            var htmlString = $"<b>{message.HeaderText.EscapeHtml()}</b>\n\n<a href=\"{message.IssueUrl}\">#{message.IssueNum}</a>  {message.BodyText.EscapeHtml()}";
             await this._telegramBot.SendTextMessageAsync(chatId, htmlString, ParseMode.Html);
         }
 
@@ -353,7 +402,6 @@ namespace TelegramService.Telegram
                 {
                     var htmlString = this.FormatHtmlSingleVersionMessage(issuesByProject.Key, 
                         issuesByVersion.Key,
-                        message.IssueHttpFullPrefix,
                         issuesByVersion.ToList());
 
                     await this._telegramBot.SendTextMessageAsync(message.ChatId, htmlString, ParseMode.Html);
@@ -365,12 +413,10 @@ namespace TelegramService.Telegram
         /// <summary> Format issues by proect and version </summary>
         /// <param name="projectSysName">Sys name of project</param>
         /// <param name="version">Version name</param>
-        /// <param name="httpIssuePrefix">Web address for open issue</param>
         /// <param name="issues">List of issues</param>
         /// <returns>Formatted string for message as html-string</returns>
         private string FormatHtmlSingleVersionMessage(string projectSysName, 
             string version, 
-            string httpIssuePrefix,
             List<BugTrackerIssue> issues)
         {
             var sb = new StringBuilder();
@@ -394,7 +440,7 @@ namespace TelegramService.Telegram
                 foreach (var issue in issuesByStatus)
                 {
                     sb.Append(this.DefineRoleIconByUser(issue.UserBotIdAssignOn));
-                    sb.Append($"<a href=\"{httpIssuePrefix}{issue.Num}\"> {issue.Subject.EscapeHtml()}</a>\n");
+                    sb.Append($"<a href=\"{issue.IssueUrl}\"> {issue.Subject.EscapeHtml()}</a>\n");
                     sb.Append($"<i>Назначена: {issue.RedmineAssignOn.EscapeHtml()}</i>\n\n");
                 }
             }

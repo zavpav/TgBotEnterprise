@@ -19,7 +19,7 @@
         public string HeaderText { get; set; } = "";
 
         /// <summary> Http prefix of redmine for open issue in browser </summary>
-        public string IssueHttpFullPrefix { get; set; } = "";
+        public string IssueUrl { get; set; } = "";
 
         /// <summary> Number of changed issue </summary>
         public string IssueNum { get; set; } = "";

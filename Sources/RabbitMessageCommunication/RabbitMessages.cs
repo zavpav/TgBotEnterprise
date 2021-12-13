@@ -22,6 +22,9 @@ namespace RabbitMessageCommunication
         /// <summary> Telegram service must send a message </summary>
         public const string TelegramOutgoingMessage = "TelegramOutgoingMessage";
 
+        /// <summary> Telegram service must send a html formatted message </summary>
+        public const string TelegramOutgoingMessageHtml = "TelegramOutgoingMessageHtml";
+
         /// <summary> Telegram service must send information about bugtracker issues </summary>
         public const string TelegramOutgoingIssuesMessage = "TelegramOutgoingIssuesMessage";
 
