@@ -128,7 +128,7 @@ namespace CommonInfrastructure
                 var postgreUser = configuration.GetValue<string?>("POSTGRE_USER")
                                   ?? throw new NotSupportedException("Postgre port is not initialized");
                 var postgrePassword = configuration.GetValue<string?>("POSTGRE_PASSWORD")
-                                      ?? throw new NotSupportedException("Postgre port is not initialized");
+                                  ?? throw new NotSupportedException("Postgre port is not initialized");
 
                 optionsBuilder
                     .UseNpgsql($"Host={postgreHost};Port={postgrePort};Database={dbName};Username={postgreUser};Password={postgrePassword}")

@@ -21,7 +21,9 @@ namespace JenkinsService.Database
 
         /// <summary> Information about job settings of projects </summary>
         public DbSet<DbeProjectSettings.JobDescription> ProjectSettingsJobDescription { get; set; }
-        
+
+        //TODO Need add index by BuildNumber and JenkinsJob
+        //TODO Need index by ChangeInfo.IssueId
         /// <summary> Jenkins jobs </summary>
         public DbSet<DbeJenkinsJob> JenkinsJobs { get; set; }
 

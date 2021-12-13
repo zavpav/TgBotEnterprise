@@ -1,0 +1,20 @@
+@startuml Processing telegram message
+
+title  Processing telegram message
+
+actor "User" as usr
+participant "Telegram\nservice" as tg
+participant "MainBot" as mb
+participant "Redmine" as rdm
+
+usr -> tg : /current issues
+tg -> mb : /current issues
+mb -> mb : Define current versions
+mb -> rdm : Request issues for project + version
+mb -> rdm : Request issues for project + version
+mb -> mb : Additional filtering
+mb -> tg : List of issues
+tg -> tg : Format issues
+tg -> usr : <<messages>>
+
+@enduml

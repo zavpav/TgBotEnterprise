@@ -19,6 +19,7 @@ namespace RedmineService.Database
         /// <summary> Information about project settings in redmine </summary>
         public DbSet<DbeProjectSettings> ProjectSettings { get; set; }
 
+        //TODO Add index by "Num"
         /// <summary> All issues from redmine </summary>
         public DbSet<DbeIssue> Issues { get; set; }
 

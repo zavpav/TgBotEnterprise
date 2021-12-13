@@ -61,6 +61,15 @@ namespace JenkinsService.Jenkins
             return this._jenkinsHost;
         }
 
+        private Task<string> GetArtefactsUri(string projectSysName, string buildBuildNumber)
+        {
+            if (string.IsNullOrEmpty(projectSysName))
+                return Task.FromResult("");
+            return Task.FromResult($"\\\\208.0.0.130\\Builds\\{projectSysName}\\ver.rc00.{buildBuildNumber}");
+        }
+
+
+
         /// <summary> Get project settings </summary>
         /// <param name="projectSysName">Project name</param>
         /// <param name="isFullSettings">if true - fill full job list. if project settings doesn't exist - create stub for it and fill with default values</param>
@@ -178,7 +187,7 @@ namespace JenkinsService.Jenkins
                             OldBuildInfo = null,
                             NewBuildInfo = build,
                             BuildUri = await this.GetUriForBuild(build.JenkinsJobName, build.BuildNumber),
-                            ArtifactsUri = ""
+                            ArtifactsUri = await this.GetArtefactsUri(build.ProjectSysName, build.BuildNumber)
                         };
 
                         jobChanges.Add(jc);
@@ -205,7 +214,7 @@ namespace JenkinsService.Jenkins
                                 .FirstAsync(x => x.BuildNumber == build.BuildNumber),
                             NewBuildInfo = build,
                             BuildUri = await this.GetUriForBuild(build.JenkinsJobName, build.BuildNumber),
-                            ArtifactsUri = ""
+                            ArtifactsUri = await this.GetArtefactsUri(build.JenkinsJobName, build.BuildNumber)
                         };
                         jobChanges.Add(jc);
 

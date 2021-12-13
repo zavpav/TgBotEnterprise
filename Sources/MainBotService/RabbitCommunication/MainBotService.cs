@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AutoMapper;
@@ -18,6 +19,7 @@ using RabbitMessageCommunication.RabbitSimpleProcessors;
 using RabbitMessageCommunication.WebAdmin;
 using RabbitMqInfrastructure;
 using Serilog;
+using TelegramService.RabbitCommunication;
 
 namespace MainBotService.RabbitCommunication
 {
@@ -195,15 +197,144 @@ namespace MainBotService.RabbitCommunication
             if (message.NewVersion == null)
                 return;
 
-            var outgoingMessage = new TelegramOutgoingBuildChangedMessage(message.SystemEventId, "zavjalov");
-            outgoingMessage.BuildUri = message.BuildUri;
-            outgoingMessage.ArtifactsUri = message.ArtifactsUri;
-            outgoingMessage.Text = $"Сборка {message.NewVersion.BuildName} {message.NewVersion.BuildDescription}\n{message.NewVersion.ExecuterInfo}";
+            //Standart build
+            //Сборка 341 Проект: СД Планирование(Текущая) Fail
+            //
+            //Изменения по следующим задачам:
+            //(uri) #2708  Убрать проксирующего пользователя
+            //
+            //Изменения по другим проектам:
+            //(uri) #2708 Убрать проксирующего пользователя
+            //(uri) #2759 Уход от прокси-пользователя: "выровнять" пользователей в базах ИМ и АСУБС
+
+            //Dump build
+            //Сборка 72 Проект: СД Финансирование(Дампы) Success
+            //
+            //База: aaaaa / sdfutest
+            //Дамп от: 19.03.2020(23.36.04)
+            //
+            //
+            //Прочая информация:
+            //SdFu Db: sss / sdfutest
+            //Fl: file
+            //dbV: 93 rcV: 93 currV: 94 isRc: false
+            //Inst: C:\Builds\SdFu\93.rc.25
+
+            //Other?
+
+
+            // Message header. Build info.
+            var sb = new StringBuilder(600);
+            sb.Append("<b>Сборка <a href='");
+            sb.Append(message.BuildUri);
+            sb.Append("'>#");
+            sb.Append(message.NewVersion.BuildNumber);
+            sb.Append("</a>");
+            sb.Append("  Проект ");
+            sb.Append((message.NewVersion.ProjectSysName ?? message.NewVersion.JobName)?.EscapeHtml());
+            sb.Append(" ");
+            sb.Append(message.NewVersion.BuildStatus);
+            sb.Append("</b>\n");
+            sb.Append(message.NewVersion.ExecuterInfo?.EscapeHtml());
+            sb.Append("\n\n");
+
+
+            if (message.NewVersion.BuildSubType == EnumBuildServerJobs.Dump)
+            {
+
+            }
+            else if (message.NewVersion.BuildSubType == EnumBuildServerJobs.Current
+                     || message.NewVersion.BuildSubType == EnumBuildServerJobs.Rc)
+            {
+
+                if (!string.IsNullOrEmpty(message.ArtifactsUri))
+                {
+                    sb.Append("Сборка: ");
+                    sb.Append(message.ArtifactsUri);
+                    sb.Append("\n\n");
+                }
+
+                var issueNums = message.NewVersion.ChangeInfos?
+                    .Select(x => x.IssueId)
+                    .Distinct()
+                    .Where(x => x != null)
+                    .ToArray();
+
+                if (issueNums != null && issueNums.Length > 0)
+                {
+
+                    var requestMessageIssue = new BugTrackerTasksRequestMessage(message.SystemEventId)
+                    {
+                        IssueNums = issueNums
+                    };
+                    var responseMessageIssue = await this.RabbitService()
+                        .DirectRequestTo<BugTrackerTasksRequestMessage, BugTrackerTasksResponseMessage>(
+                            EnumInfrastructureServicesType.BugTracker,
+                            RabbitMessages.BugTrackerRequestIssues,
+                            requestMessageIssue
+                        );
+
+                    #region Format function
+
+                    void FormatIssues(string partHeader, Func<BugTrackerIssue, bool> filter)
+                    {
+                        var filteredIssues = responseMessageIssue.Issues
+                            .Where(filter)
+                            .ToList();
+
+                        if (filteredIssues.Count > 0)
+                        {
+                            sb.Append("<b>");
+                            sb.Append(partHeader);
+                            sb.Append("</b>\n");
+
+                            foreach (var issue in filteredIssues)
+                            {
+                                sb.Append("<a href=\'");
+                                sb.Append(issue.IssueUrl);
+                                sb.Append("'>#");
+                                sb.Append(issue.Num);
+                                sb.Append("</a> ");
+                                sb.Append(issue.Subject);
+                                sb.Append("\n");
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                    FormatIssues("Изменения по следующим задачам:", iss => iss.ProjectSysName == message.NewVersion.ProjectSysName);
+                    sb.Append("\n\n");
+                    FormatIssues("Изменения по другим проектам:", iss => iss.ProjectSysName != message.NewVersion.ProjectSysName);
+                }
+
+            }
+            else if (message.NewVersion.BuildSubType == EnumBuildServerJobs.System ||
+                 message.NewVersion.BuildSubType == EnumBuildServerJobs.System)
+            {
+                sb.Append("\n\n");
+                sb.Append(message.NewVersion.BuildSubType);
+            }
 
             // Just for test
+            var outgoingMessage = new TelegramOutgoingMessageHtml(message.SystemEventId, sb.ToString())
+            {
+                BotUserId = _adminId
+            };
+
             await this._rabbitService.PublishInformation(
-                RabbitMessages.TelegramOutgoingBuildChanged,
+                RabbitMessages.TelegramOutgoingMessageHtml,
                 outgoingMessage);
+
+            //var outgoingMessage = new TelegramOutgoingBuildChangedMessage(message.SystemEventId, "zavjalov");
+            //outgoingMessage.BuildUri = message.BuildUri;
+            //outgoingMessage.ArtifactsUri = message.ArtifactsUri;
+            //outgoingMessage.Text = $"Сборка {message.NewVersion.BuildName} {message.NewVersion.BuildDescription}\n{message.NewVersion.ExecuterInfo}";
+
+            //// Just for test
+            //await this._rabbitService.PublishInformation(
+            //    RabbitMessages.TelegramOutgoingBuildChanged,
+            //    outgoingMessage);
 
 
         }

@@ -1,0 +1,32 @@
+@startuml async/await
+
+participant "Задача ноль!" as t0
+
+participant "Большая работа" as t1
+participant "Наша функция" as t2
+participant "До-о-олго" as lng
+
+activate t0
+t0 -> t1 : нихрена не await
+
+t1 -> t2 : await
+activate t1
+t2 -> lng : await
+activate t2
+lng -> : ждем-с
+lng --> t2 : ждем-с
+t2 --> t1 : ждем-с
+deactivate t1
+deactivate t2
+
+
+t0 -> t0 : А задача ноль ещё работает
+...
+lng <-- : ДОЖДАЛИСЬ
+activate t2
+lng -> t2: дождались
+activate t1
+t2 -> t1 : дождались
+deactivate t2
+t1 -> t1 : работаем-дальше-дальше
+@enduml
