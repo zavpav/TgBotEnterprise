@@ -103,7 +103,7 @@ namespace MainBotService.RabbitCommunication.Telegram
                 }
 
 
-                var sb = new StringBuilder(100);
+                var sb = new StringBuilder(600);
                 sb.Append("По задаче <a href=\"");
                 sb.Append(bugTrackerIssue.IssueUrl);
                 sb.Append("\">#");
