@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using CommonInfrastructure;
 using JenkinsService.Database;
+using JenkinsService.Jenkins;
 using RabbitMessageCommunication.BuildService;
 using RabbitMessageCommunication.MainBot;
 
@@ -26,7 +27,10 @@ namespace JenkinsService
                 .ForMember(x => x.BuildNumber, s => s.MapFrom(x => x.BuildNumber))
                 .ForMember(x => x.BuildName, s => s.MapFrom(x => x.BuildName))
                 .ForMember(x => x.BuildDescription, s => s.MapFrom(x => x.BuildDescription))
+                .ForMember(x => x.DumpDate, s => s.MapFrom(xx => MyJenkinsExtension.GetDumpInformation(xx)))
+                .ForMember(x => x.DumpDb, s => s.MapFrom(xx => MyJenkinsExtension.GetDumpDbInformation(xx)))
                 .ForMember(x => x.BuildDuration, s => s.MapFrom(x => x.BuildDuration));
+
             CreateMap<DbeJenkinsJob.ChangeInfo, BuildInfo.ChangeInfo>();
         }
 

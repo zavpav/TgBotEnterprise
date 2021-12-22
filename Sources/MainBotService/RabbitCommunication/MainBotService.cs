@@ -234,14 +234,27 @@ namespace MainBotService.RabbitCommunication
             sb.Append((message.NewVersion.ProjectSysName ?? message.NewVersion.JobName)?.EscapeHtml());
             sb.Append(" ");
             sb.Append(message.NewVersion.BuildStatus);
-            sb.Append("</b>\n");
+            sb.Append("</b> (");
+            sb.Append(message.NewVersion.BuildSubType);
+            sb.Append(")\n");
             sb.Append(message.NewVersion.ExecuterInfo?.EscapeHtml());
             sb.Append("\n\n");
 
 
             if (message.NewVersion.BuildSubType == EnumBuildServerJobs.Dump)
             {
+                sb.Append("Дамп от: <b>");
+                sb.Append(message.NewVersion.DumpDate?.ToString("dd.MM.yyyy (hh:mm:ss)"));
+                sb.Append("</b>\n");
 
+                sb.Append("База данных: <b>");
+                sb.Append(message.NewVersion.DumpDb);
+                sb.Append("</b>\n\n");
+
+                sb.Append(message.NewVersion.BuildName);
+                sb.Append("\n");
+                sb.Append(message.NewVersion.BuildDescription);
+                sb.Append("\n");
             }
             else if (message.NewVersion.BuildSubType == EnumBuildServerJobs.Current
                      || message.NewVersion.BuildSubType == EnumBuildServerJobs.Rc)

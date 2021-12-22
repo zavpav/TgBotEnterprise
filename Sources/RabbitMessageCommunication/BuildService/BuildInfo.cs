@@ -12,6 +12,13 @@ namespace RabbitMessageCommunication.BuildService
         /// <summary> Type of build </summary>
         public EnumBuildServerJobs BuildSubType { get; set; }
 
+
+        /// <summary> Database where we extract dump. Filled only for Dump subtype  </summary>
+        public string? DumpDb { get; set; }
+        
+        /// <summary> Date of dump-file. Filled only for Dump subtype  </summary>
+        public DateTime? DumpDate { get; set; }
+
         /// <summary> Status of build </summary>
         public EnumBuildStatus BuildStatus { get; set; }
 

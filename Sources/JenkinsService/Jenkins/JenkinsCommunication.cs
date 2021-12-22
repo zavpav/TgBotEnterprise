@@ -214,7 +214,7 @@ namespace JenkinsService.Jenkins
                                 .FirstAsync(x => x.BuildNumber == build.BuildNumber),
                             NewBuildInfo = build,
                             BuildUri = await this.GetUriForBuild(build.JenkinsJobName, build.BuildNumber),
-                            ArtifactsUri = await this.GetArtefactsUri(build.JenkinsJobName, build.BuildNumber)
+                            ArtifactsUri = await this.GetArtefactsUri(build.JenkinsJobName, build.BuildNumber),
                         };
                         jobChanges.Add(jc);
 
