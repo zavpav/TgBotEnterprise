@@ -36,7 +36,7 @@ namespace RedmineService.Redmine
             return (await this.GetRedmineHost()) + "issues/";
         }
 
-        /// <summary> Execute query. Add main url part. Configure credintals and etc </summary>
+        /// <summary> Execute query. Add main url part. Configure credentials and etc </summary>
         private async Task<XDocument> ExecuteRequest(string requestPart)
         {
             var redmineHost = await GetRedmineHost();
@@ -273,7 +273,7 @@ namespace RedmineService.Redmine
             {
                 this._logger
                     .ForContext("fullIssue", xFullIssue, true)
-                    .Error("Error issue #{num}", num); 
+                    .Error("Error issue #{num}", num);
                 return new List<RedmineJournal>();
             }
 

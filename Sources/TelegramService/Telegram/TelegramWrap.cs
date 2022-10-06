@@ -389,7 +389,7 @@ namespace TelegramService.Telegram
             {
                 this._logger
                     .ForContext("message", message, true)
-                    .Error("NotImplementing yet. ChatId=null. Need to fing defaultChatId in database and send it to defaultChat");
+                    .Error("NotImplementing yet. ChatId=null. Need to find defaultChatId in database and send it to defaultChat");
                 return;
             }
 
@@ -410,7 +410,7 @@ namespace TelegramService.Telegram
 
         }
 
-        /// <summary> Format issues by proect and version </summary>
+        /// <summary> Format issues by project and version </summary>
         /// <param name="projectSysName">Sys name of project</param>
         /// <param name="version">Version name</param>
         /// <param name="issues">List of issues</param>
@@ -428,11 +428,11 @@ namespace TelegramService.Telegram
                 .GroupBy(x => x.RedmineStatus)
                 .Distinct()
                 .OrderBy(x =>
-                    x.Key.ToLower() == "готов к работе" ? 1 :
-                    x.Key.ToLower() == "в работе" ? 3 :
-                    x.Key.ToLower() == "переоткрыт" ? 2 :
-                    x.Key.ToLower() == "на тестировании" ? 4 :
-                    x.Key.ToLower() == "решен" ? 5 : 10
+                    string.Equals(x.Key, "готов к работе", StringComparison.OrdinalIgnoreCase) ? 1 :
+                    string.Equals(x.Key, "в работе", StringComparison.OrdinalIgnoreCase) ? 3 :
+                    string.Equals(x.Key, "переоткрыт", StringComparison.OrdinalIgnoreCase) ? 2 :
+                    string.Equals(x.Key, "на тестировании", StringComparison.OrdinalIgnoreCase) ? 4 :
+                    string.Equals(x.Key, "решен", StringComparison.OrdinalIgnoreCase) ? 5 : 10
                 )
             )
             {

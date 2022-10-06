@@ -6,7 +6,9 @@ namespace RedmineService.Database
     public class DbeProjectSettings
     {
         // ReSharper disable once UnusedMember.Local
+        #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         private DbeProjectSettings() { }
+        #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         public DbeProjectSettings(string projectSysName)
         {
