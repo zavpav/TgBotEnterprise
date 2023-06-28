@@ -361,7 +361,7 @@ namespace TelegramService.Telegram
             }
 
             var htmlString = $"<b>{message.HeaderText.EscapeHtml()}</b>\n\n<a href=\"{message.IssueUrl}\">#{message.IssueNum}</a>  {message.BodyText.EscapeHtml()}";
-            await this._telegramBot.SendTextMessageAsync(chatId, htmlString, ParseMode.Html);
+            await this._telegramBot.SendTextMessageAsync(chatId, htmlString, parseMode: ParseMode.Html);
         }
 
         public async Task SendBuildChangedMessage(TelegramOutgoingBuildChangedMessage message)
@@ -378,7 +378,7 @@ namespace TelegramService.Telegram
             }
 
             var htmlString = $"<a href=\"{message.BuildUri}\">Сборка</a>{message.Text?.EscapeHtml()}";
-            await this._telegramBot.SendTextMessageAsync(chatId, htmlString, ParseMode.Html);
+            await this._telegramBot.SendTextMessageAsync(chatId, htmlString, parseMode: ParseMode.Html);
         }
 
         public async Task SendIssuesMessage(TelegramOutgoingIssuesMessage message)
@@ -404,7 +404,7 @@ namespace TelegramService.Telegram
                         issuesByVersion.Key,
                         issuesByVersion.ToList());
 
-                    await this._telegramBot.SendTextMessageAsync(message.ChatId, htmlString, ParseMode.Html);
+                    await this._telegramBot.SendTextMessageAsync(message.ChatId, htmlString, parseMode: ParseMode.Html);
                 }
             }
 

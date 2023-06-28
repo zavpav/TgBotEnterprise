@@ -1,5 +1,4 @@
 ﻿using System;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CommonInfrastructure
 {
@@ -7,7 +6,10 @@ namespace CommonInfrastructure
         where T : class
     {
         public Lazier(IServiceProvider provider)
-            : base(provider.GetRequiredService<T>)
+            : base(
+                  () => (T?)provider.GetService(typeof(T)) 
+                        ?? throw new NotSupportedException($"Can't resolve service '{typeof(T)}'.")
+             )
         {
         }
     }
